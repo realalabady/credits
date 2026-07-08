@@ -11,8 +11,6 @@ import {
   Image,
   X,
   Loader,
-  Link2,
-  ExternalLink,
   Palette,
   Tag,
 } from "lucide-react";
@@ -23,7 +21,7 @@ import {
   deleteProduct as deleteProductFromFirestore,
 } from "../../services/firestore";
 import { uploadImages } from "../../services/storage";
-import { scrapeProductByUrl, convertToProductVariants } from "../../services/scraperService";
+import { scrapeProductFromUrl } from "../../services/productImport";
 import type { Product, ProductVariantType, ProductVariant } from "../../types";
 import "./Products.css";
 
@@ -45,28 +43,23 @@ const Products: React.FC = () => {
     stock: "",
     featured: false,
     images: [] as string[],
-    supplierUrl: "",
-    supplierName: "",
-    supplierPrice: "",
     // المتغيرات
     hasVariants: false,
     variantTypes: [] as ProductVariantType[],
     variants: [] as ProductVariant[],
-    // حقول إضافية من أمازون
-    asin: "",
+    // حقول إضافية
     brand: "",
     features: [] as string[],
     // المواصفات
     specs: {} as Record<string, string>,
   });
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [importUrl, setImportUrl] = useState("");
+  const [importing, setImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const importFileRef = useRef<HTMLInputElement>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [productUrl, setProductUrl] = useState("");
-  const [urlLoading, setUrlLoading] = useState(false);
-  const [showUrlModal, setShowUrlModal] = useState(false);
   const itemsPerPage = 10;
 
   const filteredProducts = products.filter((p) => {
@@ -100,15 +93,11 @@ const Products: React.FC = () => {
         stock: product.stock.toString(),
         featured: product.featured,
         images: product.images,
-        supplierUrl: product.supplierUrl || "",
-        supplierName: product.supplierName || "",
-        supplierPrice: product.supplierPrice?.toString() || "",
         // المتغيرات
         hasVariants: product.hasVariants || false,
         variantTypes: product.variantTypes || [],
         variants: product.variants || [],
-        // حقول أمازون
-        asin: product.asin || "",
+        // حقول إضافية
         brand: product.brand || "",
         features: product.features || [],
         // المواصفات
@@ -127,13 +116,9 @@ const Products: React.FC = () => {
         stock: "",
         featured: false,
         images: [],
-        supplierUrl: "",
-        supplierName: "",
-        supplierPrice: "",
         hasVariants: false,
         variantTypes: [],
         variants: [],
-        asin: "",
         brand: "",
         features: [],
         specs: {},
@@ -176,6 +161,47 @@ const Products: React.FC = () => {
     }));
   };
 
+  // استيراد منتج تلقائياً من رابط خارجي (أمازون، نون، على إكسبريس، شي إن، ...)
+  const handleImportFromUrl = async () => {
+    const url = importUrl.trim();
+    if (!url) {
+      alert("يرجى لصق رابط المنتج أولاً");
+      return;
+    }
+    if (!/^https?:\/\//i.test(url)) {
+      alert("الرابط غير صالح. تأكد من نسخ الرابط كاملاً (يبدأ بـ http).");
+      return;
+    }
+    setImporting(true);
+    try {
+      const data = await scrapeProductFromUrl(url);
+      if (!data.name && !data.nameEn && data.images.length === 0) {
+        alert(
+          "لم نتمكن من قراءة بيانات المنتج من هذا الرابط. بعض المواقع (مثل على إكسبريس/علي بابا) تمنع القراءة التلقائية — جرّب رابطاً آخر أو أدخل البيانات يدوياً."
+        );
+        return;
+      }
+      setFormData((prev) => ({
+        ...prev,
+        name: data.name || data.nameEn || prev.name,
+        nameEn: data.nameEn || prev.nameEn,
+        description: data.description || prev.description,
+        price: data.price ? String(data.price) : prev.price,
+        brand: data.brand || prev.brand,
+        images: data.images.length ? data.images : prev.images,
+      }));
+      alert(
+        "تم سحب بيانات المنتج بنجاح! راجع الحقول وعدّلها ثم اضغط حفظ. (يُنصح برفع صور خاصة بك لأن روابط صور المصدر قد تتوقف.)"
+      );
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "تعذّر سحب بيانات المنتج";
+      alert("خطأ في الاستيراد: " + message);
+    } finally {
+      setImporting(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -214,7 +240,6 @@ const Products: React.FC = () => {
         .forEach((url) => URL.revokeObjectURL(url));
 
       const oldPrice = formData.oldPrice ? parseFloat(formData.oldPrice) : null;
-      const supplierPrice = formData.supplierPrice ? parseFloat(formData.supplierPrice) : null;
 
       // Build product data without undefined values (Firestore doesn't accept undefined)
       const productData: Record<string, unknown> = {
@@ -225,7 +250,7 @@ const Products: React.FC = () => {
         category: formData.category || "",
         images: allImages.length
           ? allImages
-          : ["https://via.placeholder.com/300"],
+          : ["data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Crect width='120' height='120' fill='%23ece9e3'/%3E%3Cpath d='M28 82l22-28 15 17 11-13 16 24z' fill='%23c9c6bd'/%3E%3Ccircle cx='44' cy='42' r='9' fill='%23c9c6bd'/%3E%3C/svg%3E"],
         stock: stock,
         featured: formData.featured,
         createdAt: editingProduct?.createdAt || new Date(),
@@ -236,16 +261,7 @@ const Products: React.FC = () => {
       if (oldPrice && !isNaN(oldPrice)) {
         productData.oldPrice = oldPrice;
       }
-      if (formData.supplierUrl?.trim()) {
-        productData.supplierUrl = formData.supplierUrl.trim();
-      }
-      if (formData.supplierName?.trim()) {
-        productData.supplierName = formData.supplierName.trim();
-      }
-      if (supplierPrice && !isNaN(supplierPrice)) {
-        productData.supplierPrice = supplierPrice;
-      }
-      
+
       // المتغيرات
       if (formData.hasVariants && formData.variantTypes.length > 0) {
         productData.hasVariants = true;
@@ -255,10 +271,7 @@ const Products: React.FC = () => {
         }
       }
       
-      // حقول أمازون
-      if (formData.asin) {
-        productData.asin = formData.asin;
-      }
+      // حقول إضافية
       if (formData.brand) {
         productData.brand = formData.brand;
       }
@@ -356,7 +369,7 @@ const Products: React.FC = () => {
           price: Number(item.price),
           oldPrice: item.oldPrice ? Number(item.oldPrice) : undefined,
           category: item.category || "",
-          images: item.images || ["https://via.placeholder.com/300"],
+          images: item.images || ["data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Crect width='120' height='120' fill='%23ece9e3'/%3E%3Cpath d='M28 82l22-28 15 17 11-13 16 24z' fill='%23c9c6bd'/%3E%3Ccircle cx='44' cy='42' r='9' fill='%23c9c6bd'/%3E%3C/svg%3E"],
           stock: Number(item.stock) || 0,
           featured: Boolean(item.featured),
           createdAt: new Date(),
@@ -404,145 +417,6 @@ const Products: React.FC = () => {
     });
   };
 
-  // جلب بيانات منتج من رابط URL
-  const handleFetchFromUrl = async () => {
-    if (!productUrl.trim()) return;
-    setUrlLoading(true);
-    try {
-      const scraped = await scrapeProductByUrl(productUrl.trim());
-      
-      // تحويل المتغيرات
-      const { variantTypes, variants } = convertToProductVariants(scraped);
-      
-      // تعبئة نموذج المنتج بالبيانات المجلوبة
-      setFormData({
-        name: scraped.name || "",
-        nameEn: scraped.nameEn || "",
-        description: scraped.description || "",
-        price: scraped.price ? scraped.price.toString() : "",
-        oldPrice: scraped.oldPrice ? scraped.oldPrice.toString() : "",
-        category: "",
-        stock: "10",
-        featured: false,
-        images: scraped.images || [],
-        supplierUrl: scraped.supplierUrl || "",
-        supplierName: scraped.supplierName || "",
-        supplierPrice: scraped.supplierPrice ? scraped.supplierPrice.toString() : "",
-        // المتغيرات
-        hasVariants: scraped.hasVariants || false,
-        variantTypes: variantTypes || [],
-        variants: variants || [],
-        // حقول إضافية
-        asin: scraped.asin || "",
-        brand: scraped.brand || "",
-        features: scraped.features || [],
-        specs: scraped.specs || {},
-      });
-      setEditingProduct(null);
-      setPendingFiles([]);
-      setShowUrlModal(false);
-      setShowModal(true);
-    } catch (error) {
-      console.error("Scrape error:", error);
-      alert(
-        error instanceof Error
-          ? error.message
-          : "حدث خطأ أثناء جلب بيانات المنتج",
-      );
-    } finally {
-      setUrlLoading(false);
-    }
-  };
-
-  // إضافة منتج مباشرة من رابط (بدون مراجعة)
-  const handleAddDirectFromUrl = async () => {
-    if (!productUrl.trim()) return;
-    setUrlLoading(true);
-    try {
-      const scraped = await scrapeProductByUrl(productUrl.trim());
-      const { variantTypes, variants } = convertToProductVariants(scraped);
-      
-      if (!scraped.name || !scraped.price) {
-        // إذا البيانات ناقصة، افتح النموذج للمراجعة
-        setFormData({
-          name: scraped.name || "",
-          nameEn: scraped.nameEn || "",
-          description: scraped.description || "",
-          price: scraped.price ? scraped.price.toString() : "",
-          oldPrice: scraped.oldPrice ? scraped.oldPrice.toString() : "",
-          category: "",
-          stock: "10",
-          featured: false,
-          images: scraped.images || [],
-          supplierUrl: scraped.supplierUrl || "",
-          supplierName: scraped.supplierName || "",
-          supplierPrice: scraped.supplierPrice ? scraped.supplierPrice.toString() : "",
-          hasVariants: scraped.hasVariants || false,
-          variantTypes: variantTypes || [],
-          variants: variants || [],
-          asin: scraped.asin || "",
-          brand: scraped.brand || "",
-          features: scraped.features || [],
-          specs: scraped.specs || {},
-        });
-        setEditingProduct(null);
-        setPendingFiles([]);
-        setShowUrlModal(false);
-        setShowModal(true);
-        alert("البيانات غير مكتملة. يرجى مراجعة وإكمال المعلومات.");
-        return;
-      }
-      
-      // بناء بيانات المنتج
-      const productData: Record<string, unknown> = {
-        name: scraped.name,
-        nameEn: scraped.nameEn || "",
-        description: scraped.description || "",
-        price: scraped.price,
-        category: "",
-        images:
-          scraped.images.length > 0
-            ? scraped.images
-            : ["https://via.placeholder.com/300"],
-        stock: 10,
-        featured: false,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-      
-      // إضافة الحقول الاختيارية
-      if (scraped.oldPrice) productData.oldPrice = scraped.oldPrice;
-      if (scraped.supplierUrl) productData.supplierUrl = scraped.supplierUrl;
-      if (scraped.supplierName) productData.supplierName = scraped.supplierName;
-      if (scraped.supplierPrice) productData.supplierPrice = scraped.supplierPrice;
-      if (scraped.asin) productData.asin = scraped.asin;
-      if (scraped.brand) productData.brand = scraped.brand;
-      if (scraped.features && scraped.features.length > 0) productData.features = scraped.features;
-      if (scraped.specs && Object.keys(scraped.specs).length > 0) productData.specs = scraped.specs;
-      
-      // إضافة المتغيرات
-      if (scraped.hasVariants && variantTypes && variantTypes.length > 0) {
-        productData.hasVariants = true;
-        productData.variantTypes = variantTypes;
-        if (variants && variants.length > 0) {
-          productData.variants = variants;
-        }
-      }
-      
-      await addProductToFirestore(productData as Omit<Product, "id">);
-      alert("تمت إضافة المنتج بنجاح!");
-      setShowUrlModal(false);
-      setProductUrl("");
-    } catch (error) {
-      console.error("Direct add error:", error);
-      alert(
-        error instanceof Error ? error.message : "حدث خطأ أثناء إضافة المنتج",
-      );
-    } finally {
-      setUrlLoading(false);
-    }
-  };
-
   return (
     <div className="products-page">
       {/* Page Header */}
@@ -551,17 +425,6 @@ const Products: React.FC = () => {
           <button className="btn btn-primary" onClick={() => handleOpenModal()}>
             <Plus size={18} />
             إضافة منتج
-          </button>
-          <button
-            className="btn btn-primary"
-            style={{ background: "#8b5cf6" }}
-            onClick={() => {
-              setProductUrl("");
-              setShowUrlModal(true);
-            }}
-          >
-            <Link2 size={18} />
-            إضافة من رابط
           </button>
           <input
             type="file"
@@ -692,24 +555,6 @@ const Products: React.FC = () => {
                       <div>
                         <span className="product-name">{product.name}</span>
                         <span className="product-id">#{product.id}</span>
-                        {product.supplierName && (
-                          <div className="product-source">
-                            <span className="source-badge">
-                              {product.supplierName}
-                            </span>
-                            {product.supplierUrl && (
-                              <a
-                                href={product.supplierUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="source-link"
-                                title="فتح الرابط الأصلي"
-                              >
-                                <ExternalLink size={12} />
-                              </a>
-                            )}
-                          </div>
-                        )}
                       </div>
                     </div>
                   </td>
@@ -821,6 +666,44 @@ const Products: React.FC = () => {
             </div>
             <form onSubmit={handleSubmit}>
               <div className="modal-body">
+                <div className="import-url-bar">
+                  <label className="form-label">
+                    استيراد سريع من رابط (أمازون، نون، على إكسبريس، شي إن…)
+                  </label>
+                  <div className="import-url-row">
+                    <input
+                      type="url"
+                      className="form-input"
+                      placeholder="ألصق رابط المنتج هنا…"
+                      dir="ltr"
+                      value={importUrl}
+                      onChange={(e) => setImportUrl(e.target.value)}
+                      disabled={importing}
+                    />
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={handleImportFromUrl}
+                      disabled={importing}
+                    >
+                      {importing ? (
+                        <>
+                          <Loader className="spinner" size={16} />
+                          جاري السحب…
+                        </>
+                      ) : (
+                        <>
+                          <Download size={16} />
+                          استيراد
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  <p className="import-url-hint">
+                    نسحب الاسم والسعر والصور والوصف تلقائياً. بعض المواقع تمنع
+                    القراءة الآلية — عندها أدخل البيانات يدوياً.
+                  </p>
+                </div>
                 <div className="form-row">
                   <div className="form-group">
                     <label className="form-label">اسم المنتج (عربي)</label>
@@ -850,17 +733,6 @@ const Products: React.FC = () => {
                 <div className="form-group">
                   <div className="description-header">
                     <label className="form-label">الوصف</label>
-                    {formData.supplierUrl && (
-                      <a
-                        href={formData.supplierUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="btn-copy-desc"
-                        title="افتح صفحة المنتج لنسخ الوصف"
-                      >
-                        📋 نسخ الوصف من المصدر
-                      </a>
-                    )}
                   </div>
                   <textarea
                     className="form-textarea"
@@ -1092,41 +964,6 @@ const Products: React.FC = () => {
                     </button>
                   </div>
                 </div>
-
-                {/* قسم معلومات المصدر */}
-                {(formData.supplierUrl || formData.supplierName) && (
-                  <div className="supplier-info-section">
-                    <label className="form-label">معلومات المصدر</label>
-                    <div className="supplier-info-card">
-                      {formData.supplierName && (
-                        <div className="supplier-row">
-                          <span className="supplier-label">الموقع:</span>
-                          <span className="supplier-value">{formData.supplierName}</span>
-                        </div>
-                      )}
-                      {formData.supplierPrice && (
-                        <div className="supplier-row">
-                          <span className="supplier-label">سعر المورد:</span>
-                          <span className="supplier-value">{formData.supplierPrice}</span>
-                        </div>
-                      )}
-                      {formData.supplierUrl && (
-                        <div className="supplier-row">
-                          <span className="supplier-label">الرابط:</span>
-                          <a
-                            href={formData.supplierUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="supplier-link"
-                          >
-                            <ExternalLink size={14} />
-                            فتح الرابط الأصلي
-                          </a>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
               </div>
 
               <div className="modal-footer">
@@ -1153,118 +990,6 @@ const Products: React.FC = () => {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
-      {/* URL Import Modal */}
-      {showUrlModal && (
-        <div
-          className="modal-overlay"
-          onClick={() => !urlLoading && setShowUrlModal(false)}
-        >
-          <div className="modal small" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>إضافة منتج من رابط</h2>
-              <button
-                className="close-btn"
-                onClick={() => !urlLoading && setShowUrlModal(false)}
-              >
-                ×
-              </button>
-            </div>
-            <div className="modal-body">
-              <p
-                style={{
-                  color: "#64748b",
-                  fontSize: "14px",
-                  marginBottom: "16px",
-                }}
-              >
-                الصق رابط المنتج وسيتم جلب البيانات تلقائياً
-              </p>
-              <p
-                style={{
-                  color: "#8b5cf6",
-                  fontSize: "12px",
-                  marginBottom: "12px",
-                  background: "#f5f3ff",
-                  padding: "8px 12px",
-                  borderRadius: "8px",
-                  lineHeight: "1.8",
-                }}
-              >
-                المتاجر المدعومة: Amazon • AliExpress • Noon • SHEIN • Temu •
-                eBay • Alibaba • أي موقع آخر
-              </p>
-              <div className="form-group">
-                <label className="form-label">رابط المنتج</label>
-                <input
-                  type="url"
-                  className="form-input"
-                  placeholder="https://www.amazon.sa/dp/... أو أي رابط منتج"
-                  value={productUrl}
-                  onChange={(e) => setProductUrl(e.target.value)}
-                  disabled={urlLoading}
-                  dir="ltr"
-                  style={{ textAlign: "left" }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      handleAddDirectFromUrl();
-                    }
-                  }}
-                />
-              </div>
-              {urlLoading && (
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "8px",
-                    color: "#8b5cf6",
-                    fontSize: "14px",
-                    marginTop: "8px",
-                  }}
-                >
-                  <Loader className="spinner" size={16} />
-                  <span>جاري جلب بيانات المنتج...</span>
-                </div>
-              )}
-            </div>
-            <div className="modal-footer">
-              <button
-                className="btn btn-outline"
-                onClick={() => !urlLoading && setShowUrlModal(false)}
-                disabled={urlLoading}
-              >
-                إلغاء
-              </button>
-              <button
-                className="btn btn-outline"
-                onClick={handleFetchFromUrl}
-                disabled={urlLoading || !productUrl.trim()}
-              >
-                {urlLoading ? (
-                  <Loader className="spinner" size={16} />
-                ) : (
-                  <Eye size={16} />
-                )}
-                جلب ومراجعة
-              </button>
-              <button
-                className="btn btn-primary"
-                onClick={handleAddDirectFromUrl}
-                disabled={urlLoading || !productUrl.trim()}
-                style={{ background: "#8b5cf6" }}
-              >
-                {urlLoading ? (
-                  <Loader className="spinner" size={16} />
-                ) : (
-                  <Link2 size={16} />
-                )}
-                إضافة مباشرة
-              </button>
-            </div>
           </div>
         </div>
       )}

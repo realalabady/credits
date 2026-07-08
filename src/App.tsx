@@ -6,10 +6,10 @@ import {
   getUserById,
   createOrUpdateUser,
   subscribeToProducts,
-  subscribeToCategories,
   subscribeToSettings,
 } from "./services/firestore";
 import { useStore } from "./store/useStore";
+import { CATEGORIES } from "./constants/categories";
 
 // Layouts (loaded immediately - small components)
 import Header from "./components/Header/Header";
@@ -41,15 +41,11 @@ const OrderConfirmation = lazy(() => import("./pages/OrderConfirmation/OrderConf
 // Dashboard Pages - Lazy Loaded
 const DashboardHome = lazy(() => import("./pages/Dashboard/DashboardHome"));
 const Products = lazy(() => import("./pages/Dashboard/Products"));
-const Categories = lazy(() => import("./pages/Dashboard/Categories"));
 const Orders = lazy(() => import("./pages/Dashboard/Orders"));
 const Customers = lazy(() => import("./pages/Dashboard/Customers"));
 const Analytics = lazy(() => import("./pages/Dashboard/Analytics"));
 const Settings = lazy(() => import("./pages/Dashboard/Settings"));
 const Messages = lazy(() => import("./pages/Dashboard/Messages"));
-const CJProducts = lazy(() => import("./pages/Dashboard/CJProducts"));
-const CJOrders = lazy(() => import("./pages/Dashboard/CJOrders"));
-const CJSettings = lazy(() => import("./pages/Dashboard/CJSettings"));
 
 // Styles
 import "./styles/globals.css";
@@ -94,23 +90,24 @@ const App: React.FC = () => {
   const { setUser, setProducts, setCategories, setStoreInfo } = useStore();
   const [loading, setLoading] = useState(true);
 
-  // الاشتراك المركزي في المنتجات والتصنيفات وإعدادات المتجر
+  // التصنيفات ثابتة ومُدارة محلياً (جوالات، إلكترونيات، قطع كمبيوتر)
+  useEffect(() => {
+    setCategories(CATEGORIES);
+  }, [setCategories]);
+
+  // الاشتراك المركزي في المنتجات وإعدادات المتجر
   useEffect(() => {
     const unsubProducts = subscribeToProducts((products) =>
       setProducts(products),
-    );
-    const unsubCategories = subscribeToCategories((categories) =>
-      setCategories(categories),
     );
     const unsubSettings = subscribeToSettings((settings) => {
       if (settings?.store) setStoreInfo(settings.store);
     });
     return () => {
       unsubProducts();
-      unsubCategories();
       unsubSettings();
     };
-  }, [setProducts, setCategories, setStoreInfo]);
+  }, [setProducts, setStoreInfo]);
 
   // الحفاظ على جلسة المستخدم عند تحديث الصفحة
   useEffect(() => {
@@ -174,15 +171,11 @@ const App: React.FC = () => {
         <Route path="/dashboard" element={<DashboardLayout />}>
           <Route index element={<DashboardHome />} />
           <Route path="products" element={<Products />} />
-          <Route path="categories" element={<Categories />} />
           <Route path="orders" element={<Orders />} />
           <Route path="customers" element={<Customers />} />
           <Route path="analytics" element={<Analytics />} />
           <Route path="settings" element={<Settings />} />
           <Route path="messages" element={<Messages />} />
-          <Route path="cj-products" element={<CJProducts />} />
-          <Route path="cj-orders" element={<CJOrders />} />
-          <Route path="cj-settings" element={<CJSettings />} />
         </Route>
 
         {/* Store Routes */}

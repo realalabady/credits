@@ -301,6 +301,62 @@
   margin-bottom: 1rem;
 }
 
+/* إمكان - قسّمها على 5 */
+.emkan-details {
+  margin-top: 1.5rem;
+  padding: 1.5rem;
+  background: var(--bg);
+  border-radius: 12px;
+  border: 2px solid #6c5ce7;
+}
+
+.emkan-info {
+  text-align: center;
+}
+
+.emkan-details h4 {
+  margin-bottom: 1rem;
+  color: #333;
+  font-size: 1.1rem;
+}
+
+.emkan-installments {
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+  margin: 1.5rem 0;
+  flex-wrap: wrap;
+}
+
+.emkan-installments .installment {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background: white;
+  border-radius: 8px;
+  min-width: 90px;
+  box-shadow: 0 2px 4px rgba(20, 20, 19, 0.06);
+}
+
+.emkan-installments .label {
+  font-size: 0.85rem;
+  color: #666;
+  margin-bottom: 0.25rem;
+}
+
+.emkan-installments .amount {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.emkan-note {
+  font-size: 0.9rem;
+  color: #666;
+  line-height: 1.7;
+}
+
 .btn-tamara {
   width: 100%;
   padding: 1rem 1.5rem;

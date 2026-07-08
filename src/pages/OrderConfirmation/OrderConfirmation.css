@@ -83,6 +83,17 @@
   margin-bottom: 24px;
 }
 
+.confirmation-pending {
+  background: #fef3c7;
+  color: #92400e;
+  border-radius: 12px;
+  padding: 12px 18px;
+  font-weight: 600;
+  line-height: 1.7;
+  margin-bottom: 24px;
+  max-width: 460px;
+}
+
 .confirmation-actions {
   display: flex;
   gap: 12px;

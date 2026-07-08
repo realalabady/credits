@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react';
 import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { auth } from '../../config/firebase';
@@ -16,6 +16,17 @@ const Login: React.FC = () => {
   
   const { setUser, storeInfo } = useStore();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  // بعد تسجيل الدخول: المشرف للوحة التحكم، والعميل للوجهة المطلوبة (مثل الدفع) أو الرئيسية
+  const redirectAfterLogin = (role: string) => {
+    if (role === 'admin') {
+      navigate('/dashboard');
+      return;
+    }
+    const redirect = searchParams.get('redirect');
+    navigate(redirect || '/');
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,13 +54,8 @@ const Login: React.FC = () => {
       }
       
       setUser(userData);
-      
-      // توجيه حسب الدور
-      if (userData.role === 'admin') {
-        navigate('/dashboard');
-      } else {
-        navigate('/');
-      }
+
+      redirectAfterLogin(userData.role);
     } catch (err: unknown) {
       const firebaseError = err as { code?: string };
       if (firebaseError.code === 'auth/user-not-found') {
@@ -93,12 +99,8 @@ const Login: React.FC = () => {
       }
       
       setUser(userData);
-      
-      if (userData.role === 'admin') {
-        navigate('/dashboard');
-      } else {
-        navigate('/');
-      }
+
+      redirectAfterLogin(userData.role);
     } catch (err: unknown) {
       const firebaseError = err as { code?: string };
       if (firebaseError.code === 'auth/popup-closed-by-user') {

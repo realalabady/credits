@@ -4,6 +4,7 @@ import {
   ChevronLeft,
   Smartphone,
   Laptop,
+  Cpu,
   Tv,
   Gamepad2,
   Headphones,
@@ -19,6 +20,7 @@ import "./Home.css";
 const iconMap: Record<string, React.ElementType> = {
   Smartphone,
   Laptop,
+  Cpu,
   Tv,
   Gamepad2,
   Headphones,
@@ -29,10 +31,12 @@ const iconMap: Record<string, React.ElementType> = {
 const colorMap: Record<string, string> = {
   phones: "#3b82f6",
   laptops: "#8b5cf6",
+  "pc-parts": "#0ea5e9",
   tvs: "#ec4899",
   gaming: "#10b981",
   audio: "#f59e0b",
   watches: "#6366f1",
+  accessories: "#64748b",
 };
 
 const Home: React.FC = () => {

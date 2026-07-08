@@ -12,6 +12,7 @@ interface ConfirmationOrder {
   paymentStatus?: string;
   status?: string;
   customer?: string;
+  paymentMethod?: string;
 }
 
 const OrderConfirmation: React.FC = () => {
@@ -87,6 +88,13 @@ const OrderConfirmation: React.FC = () => {
 
               {order?.paymentStatus === "paid" && (
                 <div className="confirmation-paid">تم الدفع بنجاح ✓</div>
+              )}
+
+              {order?.paymentMethod === "emkan" && (
+                <div className="confirmation-pending">
+                  طلبك قيد الانتظار. سيتواصل معك المتجر عبر واتساب لإرسال رابط
+                  الدفع حتى تكمل التقسيط على 5 دفعات عبر إمكان.
+                </div>
               )}
 
               <div className="confirmation-actions">

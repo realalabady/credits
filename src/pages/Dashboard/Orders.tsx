@@ -272,21 +272,6 @@ const Orders: React.FC = () => {
                     return (
                       <tr key={order.id}>
                         <td>
-                          {order.isCJOrder && (
-                            <span
-                              style={{
-                                padding: "2px 6px",
-                                background: "#f59e0b",
-                                color: "white",
-                                borderRadius: "4px",
-                                fontSize: "10px",
-                                fontWeight: 700,
-                                marginLeft: "6px",
-                              }}
-                            >
-                              CJ
-                            </span>
-                          )}
                           <strong>{order.id.slice(-8)}</strong>
                           {order.trackingNumber && (
                             <div

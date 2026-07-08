@@ -1,49 +1,114 @@
 /* Fonts are loaded via <link> in index.html (non render-blocking). */
 
+/* ============================================
+   DESIGN SYSTEM TOKENS  (see /DESIGN.md)
+   Quiet-premium electronics retail. One decisive accent (Signal Amber).
+   Light is default; dark is a true theme, not inverted grays.
+   Legacy variable names are kept + mapped so existing pages don't break.
+   ============================================ */
 :root {
-  /* Warm calm palette (Anthropic-inspired) */
-  --bg: #faf9f5;
+  /* Neutrals — crisp porcelain canvas, true ink (never #000) */
+  --bg: #fafaf9;
+  --bg-subtle: #f4f3f0;
   --surface: #ffffff;
-  --ink: #141413;
-  --ink-soft: #52514d;
-  --mid: #b0aea5;
-  --line: #e8e6dc;
+  --surface-2: #fbfaf8;
+  --ink: #1c1c1e;
+  --ink-soft: #6b6b70;
+  --mid: #a8a7a2;
+  --line: #ece9e3;
+  --line-strong: #dedbd2;
 
-  --primary: #d97757;
-  --primary-dark: #c25d3d;
-  --accent-blue: #6a9bcc;
-  --accent-green: #788c5d;
-  --danger: #c0392b;
+  /* Signal Amber — the single accent */
+  --primary: #c2410c;
+  --primary-dark: #9a3412;
+  --primary-tint: rgba(194, 65, 12, 0.10);
+  --primary-ring: rgba(194, 65, 12, 0.18);
 
-  /* Legacy variable names mapped to the new palette */
-  --secondary: #6a9bcc;
-  --success: #788c5d;
-  --warning: #d97757;
-  --dark: #141413;
-  --light: #faf9f5;
-  --gray: #52514d;
-  --border: #e8e6dc;
+  --accent-blue: #3f6ea5;
+  --accent-green: #4d7c2f;
+  --danger: #b42318;
 
-  /* Radii */
-  --radius-sm: 8px;
-  --radius: 12px;
-  --radius-lg: 16px;
+  /* Legacy variable names mapped to the palette */
+  --secondary: #3f6ea5;
+  --success: #4d7c2f;
+  --warning: #c2410c;
+  --dark: #1c1c1e;
+  --light: #fafaf9;
+  --gray: #6b6b70;
+  --border: #ece9e3;
+
+  /* Radii — softer, more product-boutique */
+  --radius-sm: 10px;
+  --radius: 14px;
+  --radius-lg: 20px;
 
   /* Flat "gradients" (kept as variable names so references don't break) */
-  --gradient-primary: #d97757;
-  --gradient-success: #788c5d;
-  --gradient-danger: #c0392b;
-  --gradient-gold: #d97757;
-  --gradient-dark: #141413;
+  --gradient-primary: #c2410c;
+  --gradient-success: #4d7c2f;
+  --gradient-danger: #b42318;
+  --gradient-gold: #c2410c;
+  --gradient-dark: #1c1c1e;
 
-  /* Soft shadows only */
-  --shadow-sm: 0 1px 2px rgba(20, 20, 19, 0.06);
-  --shadow-md: 0 4px 16px rgba(20, 20, 19, 0.08);
-  --shadow-lg: 0 4px 16px rgba(20, 20, 19, 0.08);
-  --shadow-primary: 0 4px 16px rgba(20, 20, 19, 0.08);
-  --shadow-success: 0 4px 16px rgba(20, 20, 19, 0.08);
-  --shadow-danger: 0 4px 16px rgba(20, 20, 19, 0.08);
+  /* Layered, tinted shadows — depth without muddiness */
+  --shadow-sm: 0 1px 2px rgba(28, 28, 30, 0.05);
+  --shadow-md: 0 1px 2px rgba(28, 28, 30, 0.04), 0 8px 24px -12px rgba(28, 28, 30, 0.14);
+  --shadow-lg: 0 2px 4px rgba(28, 28, 30, 0.05), 0 18px 40px -16px rgba(28, 28, 30, 0.20);
+  --shadow-primary: 0 8px 24px -10px rgba(194, 65, 12, 0.45);
+  --shadow-success: 0 8px 24px -12px rgba(77, 124, 47, 0.35);
+  --shadow-danger: 0 8px 24px -12px rgba(180, 35, 24, 0.35);
+
+  color-scheme: light;
 }
+
+/* True dark theme — stamped via data-theme, with prefers-color-scheme fallback */
+:root[data-theme="dark"] {
+  --bg: #0e0e11;
+  --bg-subtle: #131317;
+  --surface: #17171b;
+  --surface-2: #1c1c21;
+  --ink: #f4f4f5;
+  --ink-soft: #9a9aa2;
+  --mid: #6a6a72;
+  --line: rgba(244, 244, 245, 0.10);
+  --line-strong: rgba(244, 244, 245, 0.16);
+
+  --primary: #e8703a;
+  --primary-dark: #c2410c;
+  --primary-tint: rgba(232, 112, 58, 0.14);
+  --primary-ring: rgba(232, 112, 58, 0.28);
+
+  --accent-blue: #6f9fd6;
+  --accent-green: #8bbf5f;
+  --danger: #e06a5f;
+
+  --secondary: #6f9fd6;
+  --success: #8bbf5f;
+  --warning: #e8703a;
+  /* --dark and --light are used by components as literal dark/light SURFACES
+     (e.g. the header top-bar and footer are `background: var(--dark); color: white`).
+     They must NOT be inverted here or those bars go white-on-white. */
+  --dark: #17171b;
+  --light: #fafaf9;
+  --gray: #9a9aa2;
+  --border: rgba(244, 244, 245, 0.10);
+
+  --gradient-primary: #e8703a;
+  --gradient-success: #8bbf5f;
+  --gradient-danger: #e06a5f;
+  --gradient-gold: #e8703a;
+  --gradient-dark: #17171b;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 28px -12px rgba(0, 0, 0, 0.6);
+  --shadow-lg: 0 2px 6px rgba(0, 0, 0, 0.5), 0 22px 48px -16px rgba(0, 0, 0, 0.7);
+
+  color-scheme: dark;
+}
+
+/* NOTE: Automatic prefers-color-scheme dark switching is intentionally NOT used.
+   Several components hardcode white text against var(--dark)/var(--secondary)
+   backgrounds, so they are only correct in the light palette. Dark mode is
+   opt-in via [data-theme="dark"] once those components are made theme-aware. */
 
 * {
   margin: 0;
@@ -159,7 +224,7 @@ input, select, textarea {
 }
 
 .btn:active {
-  transform: scale(0.98);
+  transform: translateY(1px);
 }
 
 .btn-primary {
@@ -212,13 +277,17 @@ input, select, textarea {
 }
 
 .btn-ghost {
-  background: rgba(217, 119, 87, 0.1);
+  background: var(--primary-tint);
   color: var(--primary);
   border: none;
 }
 
 .btn-ghost:hover {
-  background: rgba(217, 119, 87, 0.18);
+  background: var(--primary-ring);
+}
+
+.btn-primary:hover {
+  box-shadow: var(--shadow-primary);
 }
 
 .btn-sm {
@@ -262,7 +331,7 @@ input, select, textarea {
 .form-input:focus {
   outline: none;
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(217, 119, 87, 0.15);
+  box-shadow: 0 0 0 3px var(--primary-ring);
 }
 
 .form-input:hover:not(:focus) {
@@ -293,7 +362,7 @@ input, select, textarea {
 .form-select:focus {
   outline: none;
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(217, 119, 87, 0.15);
+  box-shadow: 0 0 0 3px var(--primary-ring);
 }
 
 .form-textarea {
@@ -312,7 +381,7 @@ input, select, textarea {
 .form-textarea:focus {
   outline: none;
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(217, 119, 87, 0.15);
+  box-shadow: 0 0 0 3px var(--primary-ring);
 }
 
 .form-error {
@@ -334,8 +403,8 @@ input, select, textarea {
 }
 
 .card:hover {
-  box-shadow: var(--shadow-md);
-  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-4px);
 }
 
 .card-header {
@@ -408,7 +477,7 @@ input, select, textarea {
 }
 
 .badge-primary {
-  background: rgba(217, 119, 87, 0.12);
+  background: var(--primary-tint);
   color: var(--primary);
 }
 
@@ -418,7 +487,7 @@ input, select, textarea {
 }
 
 .badge-warning {
-  background: rgba(217, 119, 87, 0.12);
+  background: var(--primary-tint);
   color: var(--primary);
 }
 

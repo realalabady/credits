@@ -185,14 +185,9 @@ export interface FirestoreOrder {
     nationalAddress?: string;
   };
   notes?: string;
-  // حقول CJ Dropshipping
-  isCJOrder?: boolean;
-  cjOrderId?: string;
-  cjOrderNum?: string;
-  cjOrderStatus?: string;
+  // حقول الشحن
   trackingNumber?: string;
   trackingUrl?: string;
-  cjLogisticName?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -580,64 +575,4 @@ export const markMessageRead = async (id: string): Promise<void> => {
 export const deleteContactMessage = async (id: string): Promise<void> => {
   const docRef = doc(db, "contactMessages", id);
   await deleteDoc(docRef);
-};
-
-// ==================== CJ Dropshipping Settings ====================
-
-import type { CJSettings } from "../types";
-
-export const getCJSettings = async (): Promise<CJSettings | null> => {
-  const docRef = doc(db, "settings", "cjDropshipping");
-  const docSnap = await getDoc(docRef);
-  if (docSnap.exists()) {
-    return docSnap.data() as CJSettings;
-  }
-  return null;
-};
-
-export const updateCJSettings = async (
-  settings: Partial<CJSettings>,
-): Promise<void> => {
-  const docRef = doc(db, "settings", "cjDropshipping");
-  await setDoc(
-    docRef,
-    {
-      ...settings,
-      updatedAt: Timestamp.now(),
-    },
-    { merge: true },
-  );
-};
-
-export const subscribeToCJSettings = (
-  callback: (settings: CJSettings | null) => void,
-) => {
-  const docRef = doc(db, "settings", "cjDropshipping");
-  return onSnapshot(docRef, (docSnap) => {
-    if (docSnap.exists()) {
-      callback(docSnap.data() as CJSettings);
-    } else {
-      callback(null);
-    }
-  });
-};
-
-// تحديث طلب مع بيانات CJ
-export const updateOrderCJData = async (
-  orderId: string,
-  cjData: {
-    isCJOrder?: boolean;
-    cjOrderId?: string;
-    cjOrderNum?: string;
-    cjOrderStatus?: string;
-    trackingNumber?: string;
-    trackingUrl?: string;
-    cjLogisticName?: string;
-  },
-): Promise<void> => {
-  const docRef = doc(db, "orders", orderId);
-  await updateDoc(docRef, {
-    ...cjData,
-    updatedAt: Timestamp.now(),
-  });
 };

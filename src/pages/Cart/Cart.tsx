@@ -89,7 +89,7 @@ const Cart: React.FC = () => {
                 <img
                   src={
                     item.product.images?.[0] ||
-                    "https://via.placeholder.com/100"
+                    "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Crect width='120' height='120' fill='%23ece9e3'/%3E%3Cpath d='M28 82l22-28 15 17 11-13 16 24z' fill='%23c9c6bd'/%3E%3Ccircle cx='44' cy='42' r='9' fill='%23c9c6bd'/%3E%3C/svg%3E"
                   }
                   alt={item.product.name}
                   className="item-image"

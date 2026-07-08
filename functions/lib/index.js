@@ -44,6 +44,7 @@ const paypal = __importStar(require("./paypalClient"));
 const tamara = __importStar(require("./tamaraClient"));
 const amazonScraper_1 = require("./amazonScraper");
 const emailService_1 = require("./emailService");
+const resendService_1 = require("./resendService");
 admin.initializeApp();
 // التحقق من أن المستخدم أدمن
 async function verifyAdmin(auth) {
@@ -771,7 +772,7 @@ exports.cjGetBalance = functions.https.onCall(async (_data, context) => {
 exports.onOrderCreated = functions.firestore
     .document("orders/{orderId}")
     .onCreate(async (snap, context) => {
-    var _a, _b;
+    var _a, _b, _c, _d;
     const order = snap.data();
     const orderId = context.params.orderId;
     // ===== 0. تخفيض المخزون داخل معاملة (بدلاً من العميل) =====
@@ -829,6 +830,37 @@ exports.onOrderCreated = functions.firestore
     }
     catch (emailError) {
         console.error(`Error sending confirmation email for ${orderId}:`, emailError);
+    }
+    // ===== 1.b تنبيه صاحب المتجر عبر Resend لطلبات إمكان (بانتظار الدفع) =====
+    if (order.paymentMethod === "emkan") {
+        try {
+            const ownerResult = await (0, resendService_1.sendOwnerEmkanNotification)({
+                id: orderId,
+                customer: order.customer || "عميل",
+                email: order.email || "",
+                phone: order.phone || "",
+                items: order.items || [],
+                total: order.total || 0,
+                subtotal: order.subtotal,
+                shippingCost: order.shippingCost,
+                paymentMethod: order.paymentMethod,
+                shippingAddress: order.shippingAddress || "",
+                createdAt: ((_d = (_c = order.createdAt) === null || _c === void 0 ? void 0 : _c.toDate) === null || _d === void 0 ? void 0 : _d.call(_c)) || new Date(),
+            });
+            if (ownerResult.success) {
+                console.log(`Emkan owner notification sent for order ${orderId}`);
+                await snap.ref.update({
+                    ownerNotified: true,
+                    ownerNotifiedAt: admin.firestore.FieldValue.serverTimestamp(),
+                });
+            }
+            else if (!ownerResult.skipped) {
+                console.error(`Failed to send Emkan owner notification for ${orderId}:`, ownerResult.error);
+            }
+        }
+        catch (ownerError) {
+            console.error(`Error sending Emkan owner notification for ${orderId}:`, ownerError);
+        }
     }
     // ===== 2. التحقق من إعدادات CJ وإرسال الطلب تلقائياً =====
     const settingsDoc = await admin

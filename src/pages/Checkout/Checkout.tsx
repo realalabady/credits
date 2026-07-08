@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate, Link, useSearchParams } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import {
   MapPin,
   CreditCard,
@@ -12,16 +12,9 @@ import {
   Clock,
 } from "lucide-react";
 import { useStore } from "../../store/useStore";
-import {
-  addOrder,
-  getSettings,
-  updateOrderData,
-} from "../../services/firestore";
-import { createTamaraCheckout, authorizeTamaraOrder } from "../../services/tamara";
-import { createTabbyCheckout, captureTabbyPayment } from "../../services/tabby";
+import { addOrder, getSettings } from "../../services/firestore";
 import Header from "../../components/Header/Header";
 import Footer from "../../components/Footer/Footer";
-import PayPalCardForm from "../../components/PayPalCardForm/PayPalCardForm";
 import { useToast } from "../../components/Toast/Toast";
 import "./Checkout.css";
 
@@ -38,40 +31,28 @@ interface PaymentMethod {
   enabled: boolean;
 }
 
-// إنشاء معرف طلب فريد باستخدام crypto.randomUUID
-const generateOrderId = (): string => {
-  const uuid =
-    typeof crypto !== "undefined" && "randomUUID" in crypto
-      ? crypto.randomUUID()
-      : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  return `ORD-${uuid}`;
-};
+// طرق الدفع المسموح بها للعميل. تمارا/تابي/باي بال أُخفيت من واجهة العميل.
+const ALLOWED_METHOD_IDS = ["cash", "bank", "emkan"] as const;
+
+const DEFAULT_PAYMENT_METHODS: PaymentMethod[] = [
+  { id: "cash", name: "الدفع عند الاستلام", enabled: true },
+  { id: "bank", name: "التحويل البنكي", enabled: true },
+  { id: "emkan", name: "إمكان - قسّمها على 5", enabled: true },
+];
 
 const Checkout: React.FC = () => {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
   const { cart, user, clearCart, getCartTotal, storeInfo } = useStore();
   const { showToast } = useToast();
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState(1);
   const [orderPlaced, setOrderPlaced] = useState(false);
-  const [tamaraProcessing, setTamaraProcessing] = useState(false);
-  const [paidWithTamara, setPaidWithTamara] = useState(false);
-  const [tabbyProcessing, setTabbyProcessing] = useState(false);
-  const [paidWithTabby, setPaidWithTabby] = useState(false);
   const [shippingSettings, setShippingSettings] = useState<ShippingSettings>({
     freeShippingThreshold: 200,
     defaultShippingCost: 25,
     enableFreeShipping: true,
     estimatedDays: "3-5",
   });
-  const DEFAULT_PAYMENT_METHODS: PaymentMethod[] = [
-    { id: "cash", name: "الدفع عند الاستلام", enabled: true },
-    { id: "bank", name: "التحويل البنكي", enabled: true },
-    { id: "card", name: "بطاقة ائتمان", enabled: true },
-    { id: "tamara", name: "تمارا - قسّمها على 3", enabled: true },
-    { id: "tabby", name: "تابي - قسّمها على 4", enabled: true },
-  ];
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>(
     DEFAULT_PAYMENT_METHODS
   );
@@ -89,8 +70,13 @@ const Checkout: React.FC = () => {
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [cardProcessing, setCardProcessing] = useState(false);
-  const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
+
+  // يجب تسجيل الدخول قبل الوصول للدفع
+  useEffect(() => {
+    if (!user) {
+      navigate("/login?redirect=/checkout", { replace: true });
+    }
+  }, [user, navigate]);
 
   // جلب الإعدادات من Firestore
   useEffect(() => {
@@ -101,9 +87,22 @@ const Checkout: React.FC = () => {
           if (settings.shipping) {
             setShippingSettings(settings.shipping);
           }
-          // قراءة طرق الدفع المفعّلة من الإعدادات مع الرجوع للافتراضية
+          // قراءة طرق الدفع المفعّلة من الإعدادات، مع حصرها في المسموح بها
+          // وإضافة إمكان إن لم تكن موجودة.
           if (settings.payment?.methods && settings.payment.methods.length > 0) {
-            setPaymentMethods(settings.payment.methods);
+            const allowed = settings.payment.methods.filter((m: PaymentMethod) =>
+              (ALLOWED_METHOD_IDS as readonly string[]).includes(m.id)
+            );
+            if (!allowed.some((m: PaymentMethod) => m.id === "emkan")) {
+              allowed.push({
+                id: "emkan",
+                name: "إمكان - قسّمها على 5",
+                enabled: true,
+              });
+            }
+            if (allowed.length > 0) {
+              setPaymentMethods(allowed);
+            }
           }
         }
       } catch (error) {
@@ -129,160 +128,12 @@ const Checkout: React.FC = () => {
     }
   }, [user]);
 
-  // التعامل مع العودة من Tamara
+  // التحقق من السلة (فقط للمستخدم المسجّل؛ غير المسجّل يُوجَّه لتسجيل الدخول أولاً)
   useEffect(() => {
-    const handleTamaraCallback = async () => {
-      const tamaraOrderId = searchParams.get("tamara_order_id");
-      const paymentStatus = searchParams.get("paymentStatus");
-      const pendingOrder = searchParams.get("order_ref");
-      const orderDoc = searchParams.get("order_doc");
-
-      if (tamaraOrderId && paymentStatus === "approved" && pendingOrder && user) {
-        setTamaraProcessing(true);
-        setStep(2);
-
-        try {
-          // الطلب موجود مسبقاً في Firestore (أُنشئ قبل إعادة التوجيه).
-          // نستخدم order_doc، ونرجع للتخزين المحلي كنسخة احتياطية فقط.
-          let firestoreOrderId = orderDoc || undefined;
-          if (!firestoreOrderId) {
-            const savedOrderData = localStorage.getItem(
-              `tamara_order_${pendingOrder}`
-            );
-            if (savedOrderData) {
-              const parsed = JSON.parse(savedOrderData);
-              firestoreOrderId = parsed.firestoreOrderId;
-            }
-          }
-
-          // تأكيد الطلب مع Tamara (يتحقق الخادم من الملكية والمبلغ)
-          const authorizeResult = await authorizeTamaraOrder(
-            tamaraOrderId,
-            firestoreOrderId,
-            pendingOrder
-          );
-          console.log("Tamara authorize result:", authorizeResult);
-
-          // تحديث الطلب الموجود إلى مدفوع (احتياطياً إن لم يحدّثه الخادم)
-          if (firestoreOrderId) {
-            await updateOrderData(firestoreOrderId, {
-              paymentStatus: "paid",
-              paidAt: new Date(),
-            });
-          }
-
-          // تنظيف البيانات المحفوظة
-          localStorage.removeItem(`tamara_order_${pendingOrder}`);
-
-          setOrderPlaced(true);
-          setPaidWithTamara(true);
-          clearCart();
-          setStep(3);
-
-          if (firestoreOrderId) {
-            navigate(`/order-confirmation/${firestoreOrderId}`, { replace: true });
-          } else {
-            navigate("/checkout", { replace: true });
-          }
-        } catch (error) {
-          console.error("Error processing Tamara payment:", error);
-          showToast(
-            "حدث خطأ أثناء معالجة الدفع بتمارا. يرجى التواصل معنا.",
-            "error"
-          );
-        } finally {
-          setTamaraProcessing(false);
-        }
-      } else if (paymentStatus === "declined" || paymentStatus === "failed") {
-        showToast("تم رفض الدفع من تمارا. يرجى المحاولة مرة أخرى.", "error");
-        navigate("/checkout", { replace: true });
-      }
-    };
-
-    handleTamaraCallback();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams, user, clearCart, navigate]);
-
-  // التعامل مع العودة من Tabby
-  useEffect(() => {
-    const handleTabbyCallback = async () => {
-      const tabbyPaymentId = searchParams.get("payment_id");
-      const tabbyStatus = searchParams.get("status");
-      const pendingOrder = searchParams.get("order_ref");
-      const orderDoc = searchParams.get("order_doc");
-
-      if (tabbyPaymentId && tabbyStatus === "AUTHORIZED" && pendingOrder && user) {
-        setTabbyProcessing(true);
-        setStep(2);
-
-        try {
-          // الطلب موجود مسبقاً في Firestore. نستخدم order_doc ونرجع للتخزين
-          // المحلي كنسخة احتياطية فقط.
-          let firestoreOrderId = orderDoc || undefined;
-          if (!firestoreOrderId) {
-            const savedOrderData = localStorage.getItem(
-              `tabby_order_${pendingOrder}`
-            );
-            if (savedOrderData) {
-              const parsed = JSON.parse(savedOrderData);
-              firestoreOrderId = parsed.firestoreOrderId;
-            }
-          }
-
-          // تأكيد الدفع مع Tabby (يتحقق الخادم من الملكية والمبلغ)
-          const captureResult = await captureTabbyPayment(
-            tabbyPaymentId,
-            firestoreOrderId,
-            pendingOrder
-          );
-          console.log("Tabby capture result:", captureResult);
-
-          // تحديث الطلب الموجود إلى مدفوع (احتياطياً إن لم يحدّثه الخادم)
-          if (firestoreOrderId) {
-            await updateOrderData(firestoreOrderId, {
-              paymentStatus: "paid",
-              paidAt: new Date(),
-            });
-          }
-
-          // تنظيف البيانات المحفوظة
-          localStorage.removeItem(`tabby_order_${pendingOrder}`);
-
-          setOrderPlaced(true);
-          setPaidWithTabby(true);
-          clearCart();
-          setStep(3);
-
-          if (firestoreOrderId) {
-            navigate(`/order-confirmation/${firestoreOrderId}`, { replace: true });
-          } else {
-            navigate("/checkout", { replace: true });
-          }
-        } catch (error) {
-          console.error("Error processing Tabby payment:", error);
-          showToast(
-            "حدث خطأ أثناء معالجة الدفع بتابي. يرجى التواصل معنا.",
-            "error"
-          );
-        } finally {
-          setTabbyProcessing(false);
-        }
-      } else if (tabbyStatus === "REJECTED" || tabbyStatus === "EXPIRED") {
-        showToast("تم رفض الدفع من تابي. يرجى المحاولة مرة أخرى.", "error");
-        navigate("/checkout", { replace: true });
-      }
-    };
-
-    handleTabbyCallback();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams, user, clearCart, navigate]);
-
-  // التحقق من السلة
-  useEffect(() => {
-    if (cart.length === 0 && !orderPlaced) {
+    if (user && cart.length === 0 && !orderPlaced) {
       navigate("/cart");
     }
-  }, [cart, navigate, orderPlaced]);
+  }, [user, cart, navigate, orderPlaced]);
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("ar-SA", {
@@ -320,293 +171,9 @@ const Checkout: React.FC = () => {
     }
   };
 
-  // معالجة الدفع بتمارا
-  const handleTamaraPayment = async () => {
-    if (!user) {
-      navigate("/login");
-      return;
-    }
-
-    setTamaraProcessing(true);
-
-    try {
-      // التحقق من توفر المخزون
-      const { products } = useStore.getState();
-      const stockErrors: string[] = [];
-      for (const item of cart) {
-        const currentProduct = products.find((p) => p.id === item.product.id);
-        if (currentProduct && currentProduct.stock < item.quantity) {
-          stockErrors.push(
-            `${item.product.name}: متوفر ${currentProduct.stock} فقط (طلبت ${item.quantity})`
-          );
-        }
-      }
-      if (stockErrors.length > 0) {
-        alert(
-          "بعض المنتجات غير متوفرة بالكمية المطلوبة:\n" + stockErrors.join("\n")
-        );
-        setTamaraProcessing(false);
-        return;
-      }
-
-      const orderReference = generateOrderId();
-
-      // تجهيز بيانات الطلب للحفظ
-      const orderDataToSave = {
-        userId: user.id,
-        customer: formData.fullName,
-        email: user.email,
-        phone: formData.phone,
-        items: cart.map((item) => ({
-          productId: item.product.id,
-          name: item.product.name,
-          quantity: item.quantity,
-          price: item.product.price,
-          image: item.product.images[0] || "",
-        })),
-        total: total,
-        subtotal: subtotal,
-        shippingCost: shipping,
-        status: "pending" as const,
-        paymentMethod: "tamara",
-        paymentStatus: "pending" as const,
-        orderReference,
-        shippingAddress: `${formData.city}، ${formData.district}، ${formData.street}${formData.building ? `، مبنى ${formData.building}` : ""}${formData.nationalAddress ? `، العنوان الوطني: ${formData.nationalAddress}` : ""}`,
-        address: {
-          fullName: formData.fullName,
-          phone: formData.phone,
-          city: formData.city,
-          district: formData.district,
-          street: formData.street,
-          building: formData.building,
-          nationalAddress: formData.nationalAddress,
-        },
-        notes: formData.notes,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-
-      // إنشاء الطلب في Firestore قبل إعادة التوجيه (حالة معلّقة).
-      // هذا يضمن وجود الطلب حتى لو عاد المستخدم من متصفح مختلف أو مسح التخزين.
-      const firestoreOrderId = await addOrder(orderDataToSave);
-
-      // حفظ بيانات الطلب مؤقتاً كنسخة احتياطية فقط
-      localStorage.setItem(
-        `tamara_order_${orderReference}`,
-        JSON.stringify({ ...orderDataToSave, firestoreOrderId })
-      );
-
-      // إنشاء عنوان العودة الحالي
-      const baseUrl = window.location.origin;
-
-      // تجهيز عناصر الطلب لتمارا
-      const tamaraItems = cart.map((item) => ({
-        reference_id: item.product.id,
-        name: item.product.name,
-        quantity: item.quantity,
-        unit_price: item.product.price,
-        image_url: item.product.images[0] || undefined,
-      }));
-
-      // تقسيم الاسم
-      const nameParts = formData.fullName.trim().split(" ");
-      const firstName = nameParts[0] || formData.fullName;
-      const lastName = nameParts.slice(1).join(" ") || firstName;
-
-      // إنشاء جلسة الدفع
-      const checkoutResult = await createTamaraCheckout({
-        orderReferenceId: orderReference,
-        totalAmount: total,
-        currency: "SAR",
-        items: tamaraItems,
-        consumer: {
-          first_name: firstName,
-          last_name: lastName,
-          email: user.email,
-          phone: formData.phone.startsWith("+966")
-            ? formData.phone
-            : `+966${formData.phone.replace(/^0/, "")}`,
-        },
-        shippingAddress: {
-          first_name: firstName,
-          last_name: lastName,
-          line1: `${formData.district}، ${formData.street}`,
-          city: formData.city,
-          phone: formData.phone.startsWith("+966")
-            ? formData.phone
-            : `+966${formData.phone.replace(/^0/, "")}`,
-        },
-        shippingAmount: shipping,
-        successUrl: `${baseUrl}/checkout?paymentStatus=approved&order_ref=${orderReference}&order_doc=${firestoreOrderId}`,
-        failureUrl: `${baseUrl}/checkout?paymentStatus=failed&order_ref=${orderReference}&order_doc=${firestoreOrderId}`,
-        cancelUrl: `${baseUrl}/checkout?paymentStatus=cancelled&order_ref=${orderReference}&order_doc=${firestoreOrderId}`,
-        description: `طلب #${orderReference}`,
-      });
-
-      // توجيه المستخدم لصفحة تمارا
-      window.location.href = checkoutResult.checkout_url;
-    } catch (error: any) {
-      console.error("Error creating Tamara checkout:", error);
-      showToast(
-        `حدث خطأ أثناء إنشاء جلسة الدفع: ${error.message || "خطأ غير معروف"}`,
-        "error"
-      );
-      setTamaraProcessing(false);
-    }
-  };
-
-  // معالجة الدفع بتابي
-  const handleTabbyPayment = async () => {
-    if (!user) {
-      navigate("/login");
-      return;
-    }
-
-    setTabbyProcessing(true);
-
-    try {
-      // التحقق من توفر المخزون
-      const { products } = useStore.getState();
-      const stockErrors: string[] = [];
-      for (const item of cart) {
-        const currentProduct = products.find((p) => p.id === item.product.id);
-        if (currentProduct && currentProduct.stock < item.quantity) {
-          stockErrors.push(
-            `${item.product.name}: متوفر ${currentProduct.stock} فقط (طلبت ${item.quantity})`
-          );
-        }
-      }
-      if (stockErrors.length > 0) {
-        alert(
-          "بعض المنتجات غير متوفرة بالكمية المطلوبة:\n" + stockErrors.join("\n")
-        );
-        setTabbyProcessing(false);
-        return;
-      }
-
-      const orderReference = generateOrderId();
-
-      // تجهيز بيانات الطلب للحفظ
-      const orderDataToSave = {
-        userId: user.id,
-        customer: formData.fullName,
-        email: user.email,
-        phone: formData.phone,
-        items: cart.map((item) => ({
-          productId: item.product.id,
-          name: item.product.name,
-          quantity: item.quantity,
-          price: item.product.price,
-          image: item.product.images[0] || "",
-        })),
-        total: total,
-        subtotal: subtotal,
-        shippingCost: shipping,
-        status: "pending" as const,
-        paymentMethod: "tabby",
-        paymentStatus: "pending" as const,
-        orderReference,
-        shippingAddress: `${formData.city}، ${formData.district}، ${formData.street}${formData.building ? `، مبنى ${formData.building}` : ""}${formData.nationalAddress ? `، العنوان الوطني: ${formData.nationalAddress}` : ""}`,
-        address: {
-          fullName: formData.fullName,
-          phone: formData.phone,
-          city: formData.city,
-          district: formData.district,
-          street: formData.street,
-          building: formData.building,
-          nationalAddress: formData.nationalAddress,
-        },
-        notes: formData.notes,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-
-      // إنشاء الطلب في Firestore قبل إعادة التوجيه (حالة معلّقة)
-      const firestoreOrderId = await addOrder(orderDataToSave);
-
-      // حفظ بيانات الطلب مؤقتاً كنسخة احتياطية فقط
-      localStorage.setItem(
-        `tabby_order_${orderReference}`,
-        JSON.stringify({ ...orderDataToSave, firestoreOrderId })
-      );
-
-      // إنشاء عنوان العودة الحالي
-      const baseUrl = window.location.origin;
-
-      // تجهيز عناصر الطلب لتابي
-      const tabbyItems = cart.map((item) => ({
-        title: item.product.name,
-        quantity: item.quantity,
-        unit_price: item.product.price.toFixed(2),
-        category: "Electronics",
-        reference_id: item.product.id,
-        image_url: item.product.images[0] || undefined,
-      }));
-
-      // إنشاء جلسة الدفع
-      const checkoutResult = await createTabbyCheckout({
-        order_reference_id: orderReference,
-        amount: total.toFixed(2),
-        currency: "SAR",
-        items: tabbyItems,
-        buyer: {
-          name: formData.fullName,
-          email: user.email,
-          phone: formData.phone.startsWith("+966")
-            ? formData.phone
-            : `+966${formData.phone.replace(/^0/, "")}`,
-        },
-        shipping_address: {
-          city: formData.city,
-          address: `${formData.district}، ${formData.street}`,
-          zip: formData.nationalAddress || "00000",
-        },
-        success_url: `${baseUrl}/checkout?status=AUTHORIZED&order_ref=${orderReference}&order_doc=${firestoreOrderId}`,
-        cancel_url: `${baseUrl}/checkout?status=REJECTED&order_ref=${orderReference}&order_doc=${firestoreOrderId}`,
-        failure_url: `${baseUrl}/checkout?status=REJECTED&order_ref=${orderReference}&order_doc=${firestoreOrderId}`,
-        description: `طلب #${orderReference}`,
-      });
-
-      console.log("Tabby checkout result:", JSON.stringify(checkoutResult, null, 2));
-
-      // التحقق من حالة الجلسة
-      if (checkoutResult.status === "rejected") {
-        const rejectionReason = checkoutResult.rejection_reason || "غير مؤهل للدفع عبر تابي";
-        console.error("Tabby checkout rejected:", rejectionReason);
-        throw new Error(`تم رفض طلب الدفع من تابي: ${rejectionReason}`);
-      }
-
-      // توجيه المستخدم لصفحة تابي - محاولة عدة مسارات للحصول على الرابط
-      const checkoutUrl = 
-        checkoutResult.configuration?.available_products?.installments?.[0]?.web_url ||
-        checkoutResult.configuration?.available_products?.pay_later?.[0]?.web_url ||
-        checkoutResult.web_url ||
-        checkoutResult.checkout_url;
-      
-      if (!checkoutUrl) {
-        console.error("No checkout URL found in response:", checkoutResult);
-        // محاولة عرض معلومات أكثر عن الاستجابة
-        const availableProducts = checkoutResult.configuration?.available_products;
-        if (availableProducts) {
-          console.log("Available products:", JSON.stringify(availableProducts, null, 2));
-        }
-        throw new Error("لم يتم الحصول على رابط الدفع من تابي. قد يكون المبلغ أو بيانات العميل غير مؤهلة.");
-      }
-      
-      window.location.href = checkoutUrl;
-    } catch (error: any) {
-      console.error("Error creating Tabby checkout:", error);
-      showToast(
-        `حدث خطأ أثناء إنشاء جلسة الدفع بتابي: ${error.message || "خطأ غير معروف"}`,
-        "error"
-      );
-      setTabbyProcessing(false);
-    }
-  };
-
   const handleSubmitOrder = async () => {
     if (!user) {
-      navigate("/login");
+      navigate("/login?redirect=/checkout");
       return;
     }
 
@@ -634,6 +201,8 @@ const Checkout: React.FC = () => {
         return;
       }
 
+      const isEmkan = formData.paymentMethod === "emkan";
+
       const orderData = {
         userId: user.id,
         customer: formData.fullName,
@@ -651,6 +220,8 @@ const Checkout: React.FC = () => {
         shippingCost: shipping,
         status: "pending" as const,
         paymentMethod: formData.paymentMethod,
+        // إمكان: الطلب معلّق حتى يدفع العميل عبر الرابط الذي يرسله المتجر.
+        ...(isEmkan ? { paymentStatus: "pending" as const } : {}),
         shippingAddress: `${formData.city}، ${formData.district}، ${formData.street}${formData.building ? `، مبنى ${formData.building}` : ""}${formData.nationalAddress ? `، العنوان الوطني: ${formData.nationalAddress}` : ""}`,
 
         address: {
@@ -667,7 +238,8 @@ const Checkout: React.FC = () => {
         updatedAt: new Date(),
       };
 
-      // المخزون يُخصم على الخادم داخل onOrderCreated (معاملة ذرية)
+      // المخزون يُخصم على الخادم داخل onOrderCreated (معاملة ذرية).
+      // كما يُرسل onOrderCreated تنبيهاً لصاحب المتجر عبر Resend لطلبات إمكان.
       const newOrderId = await addOrder(orderData);
 
       setOrderPlaced(true);
@@ -682,109 +254,7 @@ const Checkout: React.FC = () => {
     }
   };
 
-  // التعامل مع نجاح الدفع بالبطاقة
-  const handleCardPaymentSuccess = async (captureData: {
-    paypalOrderId: string;
-    captureId: string;
-    status: string;
-  }) => {
-    if (!user) {
-      navigate("/login");
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      // التحقق من توفر المخزون
-      const { products } = useStore.getState();
-      const stockErrors: string[] = [];
-      for (const item of cart) {
-        const currentProduct = products.find((p) => p.id === item.product.id);
-        if (currentProduct && currentProduct.stock < item.quantity) {
-          stockErrors.push(
-            `${item.product.name}: متوفر ${currentProduct.stock} فقط (طلبت ${item.quantity})`,
-          );
-        }
-      }
-      if (stockErrors.length > 0) {
-        showToast(
-          "بعض المنتجات غير متوفرة بالكمية المطلوبة:\n" +
-            stockErrors.join("\n"),
-          "error"
-        );
-        setLoading(false);
-        return;
-      }
-
-      const orderData = {
-        userId: user.id,
-        customer: formData.fullName,
-        email: user.email,
-        phone: formData.phone,
-        items: cart.map((item) => ({
-          productId: item.product.id,
-          name: item.product.name,
-          quantity: item.quantity,
-          price: item.product.price,
-          image: item.product.images[0] || "",
-        })),
-        total: total,
-        subtotal: subtotal,
-        shippingCost: shipping,
-        status: "pending" as const,
-        paymentMethod: "card",
-        paymentStatus: "paid" as const,
-        paypalOrderId: captureData.paypalOrderId,
-        paypalCaptureId: captureData.captureId,
-        paidAt: new Date(),
-        shippingAddress: `${formData.city}، ${formData.district}، ${formData.street}${formData.building ? `، مبنى ${formData.building}` : ""}${formData.nationalAddress ? `، العنوان الوطني: ${formData.nationalAddress}` : ""}`,
-        address: {
-          fullName: formData.fullName,
-          phone: formData.phone,
-          city: formData.city,
-          district: formData.district,
-          street: formData.street,
-          building: formData.building,
-          nationalAddress: formData.nationalAddress,
-        },
-        notes: formData.notes,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-
-      // المخزون يُخصم على الخادم داخل onOrderCreated (معاملة ذرية)
-      const newOrderId = await addOrder(orderData);
-
-      setOrderPlaced(true);
-      clearCart();
-      setStep(3);
-      navigate(`/order-confirmation/${newOrderId}`, { replace: true });
-    } catch (error) {
-      console.error("Error creating order after card payment:", error);
-      showToast(
-        "تم الدفع بنجاح ولكن حدث خطأ في حفظ الطلب. يرجى التواصل معنا.",
-        "error"
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // التعامل مع خطأ الدفع بالبطاقة
-  const handleCardPaymentError = (error: string) => {
-    console.error("Card payment error:", error);
-    showToast(`خطأ في الدفع: ${error}`, "error");
-  };
-
-  // تهيئة معرف الطلب للدفع بالبطاقة
-  useEffect(() => {
-    if (step === 2 && formData.paymentMethod === "card" && !pendingOrderId) {
-      setPendingOrderId(generateOrderId());
-    }
-  }, [step, formData.paymentMethod, pendingOrderId]);
-
-  // صفحة تسجيل الدخول إذا لم يكن هناك مستخدم
+  // صفحة تسجيل الدخول إذا لم يكن هناك مستخدم (احتياطي؛ يتم التوجيه تلقائياً)
   if (!user) {
     return (
       <>
@@ -795,7 +265,10 @@ const Checkout: React.FC = () => {
               <AlertCircle size={60} />
               <h2>يجب تسجيل الدخول أولاً</h2>
               <p>قم بتسجيل الدخول لإتمام عملية الشراء</p>
-              <Link to="/login" className="btn btn-primary btn-lg">
+              <Link
+                to="/login?redirect=/checkout"
+                className="btn btn-primary btn-lg"
+              >
                 تسجيل الدخول
               </Link>
             </div>
@@ -1033,23 +506,7 @@ const Checkout: React.FC = () => {
                                 {method.id === "bank" && (
                                   <CreditCard size={24} />
                                 )}
-                                {method.id === "card" && (
-                                  <CreditCard size={24} />
-                                )}
-                                {method.id === "tamara" && (
-                                  <img 
-                                    src="https://cdn.tamara.co/assets/svg/tamara-logo-badge-ar.svg" 
-                                    alt="Tamara" 
-                                    className="tamara-badge"
-                                  />
-                                )}
-                                {method.id === "tabby" && (
-                                  <svg className="tabby-badge" viewBox="0 0 560 180" xmlns="http://www.w3.org/2000/svg">
-                                    <path fill="#3BFFC0" d="M77.6 137.9c42.4 0 76.9-30.8 76.9-68.9S120 0 77.6 0 .8 30.8.8 69s34.4 68.9 76.8 68.9z"/>
-                                    <path fill="#292929" d="M103.6 69c0 14.3-11.6 25.9-25.9 25.9S51.8 83.3 51.8 69s11.6-25.9 25.9-25.9 25.9 11.6 25.9 25.9z"/>
-                                    <path fill="#292929" d="M207.4 27.6v17.3h-21.6v73.8h-20.5V44.9h-21.5V27.6h63.6zm54.6 0h20.5v91.1h-20.5v-5.1c-5.8 4.5-13.2 7.1-21.3 7.1-20.7 0-37.5-18.8-37.5-42s16.8-42 37.5-42c8.1 0 15.5 2.6 21.3 7.1v-16.2zm0 59.1c0-13.8-9.4-25-21-25s-21 11.2-21 25 9.4 25 21 25 21-11.2 21-25zm78.5-50.1c20.7 0 37.5 18.8 37.5 42s-16.8 42-37.5 42c-8.1 0-15.5-2.6-21.3-7.1v44.2h-20.5V27.6h20.5v5.1c5.8-4.5 13.2-7.1 21.3-7.1zm-4.3 67c11.6 0 21-11.2 21-25s-9.4-25-21-25-21 11.2-21 25 9.4 25 21 25zm87.8-67c20.7 0 37.5 18.8 37.5 42s-16.8 42-37.5 42c-8.1 0-15.5-2.6-21.3-7.1v44.2h-20.5V27.6h20.5v5.1c5.8-4.5 13.2-7.1 21.3-7.1zm-4.3 67c11.6 0 21-11.2 21-25s-9.4-25-21-25-21 11.2-21 25 9.4 25 21 25zm51.8-76.1h20.5l23.8 54.1 23.8-54.1h22.1l-56.5 126h-22.1l21.2-47.7-32.8-78.3z"/>
-                                  </svg>
-                                )}
+                                {method.id === "emkan" && <Clock size={24} />}
                                 <div>
                                   <strong>{method.name}</strong>
                                   {method.id === "cash" && (
@@ -1058,14 +515,10 @@ const Checkout: React.FC = () => {
                                   {method.id === "bank" && (
                                     <span>تحويل إلى الحساب البنكي</span>
                                   )}
-                                  {method.id === "card" && (
-                                    <span>Visa, Mastercard, Mada</span>
-                                  )}
-                                  {method.id === "tamara" && (
-                                    <span>اشترِ الآن وادفع لاحقاً على 3 دفعات بدون فوائد</span>
-                                  )}
-                                  {method.id === "tabby" && (
-                                    <span>اشترِ الآن وادفع لاحقاً على 4 دفعات بدون فوائد</span>
+                                  {method.id === "emkan" && (
+                                    <span>
+                                      قسّم فاتورتك على 5 دفعات عبر إمكان
+                                    </span>
                                   )}
                                 </div>
                               </div>
@@ -1080,7 +533,8 @@ const Checkout: React.FC = () => {
                             <strong>البنك:</strong> البنك الأهلي
                           </p>
                           <p>
-                            <strong>اسم الحساب:</strong> {storeInfo.storeName || "متجري"}
+                            <strong>اسم الحساب:</strong>{" "}
+                            {storeInfo.storeName || "متجري"}
                           </p>
                           <p>
                             <strong>رقم الآيبان:</strong>{" "}
@@ -1092,116 +546,32 @@ const Checkout: React.FC = () => {
                         </div>
                       )}
 
-                      {formData.paymentMethod === "card" && pendingOrderId && (
-                        <PayPalCardForm
-                          amount={total}
-                          currency="SAR"
-                          orderId={pendingOrderId}
-                          items={cart.map((item) => ({
-                            productId: item.product.id,
-                            quantity: item.quantity,
-                          }))}
-                          onSuccess={handleCardPaymentSuccess}
-                          onError={handleCardPaymentError}
-                          onProcessing={setCardProcessing}
-                        />
-                      )}
-
-                      {formData.paymentMethod === "tamara" && (
-                        <div className="tamara-details">
-                          <div className="tamara-info">
-                            <img 
-                              src="https://cdn.tamara.co/assets/svg/tamara-logo-badge-ar.svg" 
-                              alt="Tamara" 
-                              className="tamara-logo"
-                            />
-                            <h4>قسّمها على 3 دفعات بدون فوائد</h4>
-                            <div className="tamara-installments">
-                              <div className="installment">
-                                <span className="label">اليوم</span>
-                                <span className="amount">{formatPrice(total / 3)}</span>
-                              </div>
-                              <div className="installment">
-                                <span className="label">بعد شهر</span>
-                                <span className="amount">{formatPrice(total / 3)}</span>
-                              </div>
-                              <div className="installment">
-                                <span className="label">بعد شهرين</span>
-                                <span className="amount">{formatPrice(total / 3)}</span>
-                              </div>
+                      {formData.paymentMethod === "emkan" && (
+                        <div className="emkan-details">
+                          <div className="emkan-info">
+                            <h4>قسّمها على 5 دفعات مع إمكان</h4>
+                            <div className="emkan-installments">
+                              {[
+                                "الدفعة 1",
+                                "الدفعة 2",
+                                "الدفعة 3",
+                                "الدفعة 4",
+                                "الدفعة 5",
+                              ].map((label) => (
+                                <div className="installment" key={label}>
+                                  <span className="label">{label}</span>
+                                  <span className="amount">
+                                    {formatPrice(total / 5)}
+                                  </span>
+                                </div>
+                              ))}
                             </div>
-                            <p className="tamara-note">
-                              سيتم تحويلك لصفحة تمارا لإتمام الدفع
+                            <p className="emkan-note">
+                              عند تأكيد الطلب سيُسجَّل كطلب قيد الانتظار،
+                              وسيتواصل معك المتجر عبر واتساب لإرسال رابط الدفع
+                              حتى تكمل التقسيط على 5 دفعات عبر إمكان.
                             </p>
                           </div>
-                          <button
-                            className="btn btn-tamara"
-                            onClick={handleTamaraPayment}
-                            disabled={tamaraProcessing}
-                          >
-                            {tamaraProcessing ? (
-                              <>
-                                <Loader className="spinner" size={18} />
-                                جاري التحويل لتمارا...
-                              </>
-                            ) : (
-                              <>
-                                <Clock size={18} />
-                                الدفع عبر تمارا - {formatPrice(total)}
-                              </>
-                            )}
-                          </button>
-                        </div>
-                      )}
-
-                      {formData.paymentMethod === "tabby" && (
-                        <div className="tabby-details">
-                          <div className="tabby-info">
-                            <svg className="tabby-logo" viewBox="0 0 560 180" xmlns="http://www.w3.org/2000/svg">
-                              <path fill="#3BFFC0" d="M77.6 137.9c42.4 0 76.9-30.8 76.9-68.9S120 0 77.6 0 .8 30.8.8 69s34.4 68.9 76.8 68.9z"/>
-                              <path fill="#292929" d="M103.6 69c0 14.3-11.6 25.9-25.9 25.9S51.8 83.3 51.8 69s11.6-25.9 25.9-25.9 25.9 11.6 25.9 25.9z"/>
-                              <path fill="#292929" d="M207.4 27.6v17.3h-21.6v73.8h-20.5V44.9h-21.5V27.6h63.6zm54.6 0h20.5v91.1h-20.5v-5.1c-5.8 4.5-13.2 7.1-21.3 7.1-20.7 0-37.5-18.8-37.5-42s16.8-42 37.5-42c8.1 0 15.5 2.6 21.3 7.1v-16.2zm0 59.1c0-13.8-9.4-25-21-25s-21 11.2-21 25 9.4 25 21 25 21-11.2 21-25zm78.5-50.1c20.7 0 37.5 18.8 37.5 42s-16.8 42-37.5 42c-8.1 0-15.5-2.6-21.3-7.1v44.2h-20.5V27.6h20.5v5.1c5.8-4.5 13.2-7.1 21.3-7.1zm-4.3 67c11.6 0 21-11.2 21-25s-9.4-25-21-25-21 11.2-21 25 9.4 25 21 25zm87.8-67c20.7 0 37.5 18.8 37.5 42s-16.8 42-37.5 42c-8.1 0-15.5-2.6-21.3-7.1v44.2h-20.5V27.6h20.5v5.1c5.8-4.5 13.2-7.1 21.3-7.1zm-4.3 67c11.6 0 21-11.2 21-25s-9.4-25-21-25-21 11.2-21 25 9.4 25 21 25zm51.8-76.1h20.5l23.8 54.1 23.8-54.1h22.1l-56.5 126h-22.1l21.2-47.7-32.8-78.3z"/>
-                            </svg>
-                            <h4>قسّمها على 4 دفعات بدون فوائد</h4>
-                            <div className="tabby-installments">
-                              <div className="installment">
-                                <span className="label">اليوم</span>
-                                <span className="amount">{formatPrice(total / 4)}</span>
-                              </div>
-                              <div className="installment">
-                                <span className="label">بعد شهر</span>
-                                <span className="amount">{formatPrice(total / 4)}</span>
-                              </div>
-                              <div className="installment">
-                                <span className="label">بعد شهرين</span>
-                                <span className="amount">{formatPrice(total / 4)}</span>
-                              </div>
-                              <div className="installment">
-                                <span className="label">بعد 3 شهور</span>
-                                <span className="amount">{formatPrice(total / 4)}</span>
-                              </div>
-                            </div>
-                            <p className="tabby-note">
-                              سيتم تحويلك لصفحة تابي لإتمام الدفع
-                            </p>
-                          </div>
-                          <button
-                            className="btn btn-tabby"
-                            onClick={handleTabbyPayment}
-                            disabled={tabbyProcessing}
-                          >
-                            {tabbyProcessing ? (
-                              <>
-                                <Loader className="spinner" size={18} />
-                                جاري التحويل لتابي...
-                              </>
-                            ) : (
-                              <>
-                                <Clock size={18} />
-                                الدفع عبر تابي - {formatPrice(total)}
-                              </>
-                            )}
-                          </button>
                         </div>
                       )}
                     </div>
@@ -1211,27 +581,27 @@ const Checkout: React.FC = () => {
                     <button
                       className="btn btn-outline"
                       onClick={() => setStep(1)}
-                      disabled={cardProcessing || tamaraProcessing || tabbyProcessing}
+                      disabled={loading}
                     >
                       <ArrowRight size={18} />
                       السابق
                     </button>
-                    {formData.paymentMethod !== "card" && formData.paymentMethod !== "tamara" && formData.paymentMethod !== "tabby" && (
-                      <button
-                        className="btn btn-primary"
-                        onClick={handleSubmitOrder}
-                        disabled={loading}
-                      >
-                        {loading ? (
-                          <>
+                    <button
+                      className="btn btn-primary"
+                      onClick={handleSubmitOrder}
+                      disabled={loading}
+                    >
+                      {loading ? (
+                        <>
                           <Loader className="spinner" size={18} />
                           جاري إرسال الطلب...
                         </>
+                      ) : formData.paymentMethod === "emkan" ? (
+                        `تأكيد الطلب (قيد الانتظار) - ${formatPrice(total)}`
                       ) : (
                         `تأكيد الطلب - ${formatPrice(total)}`
                       )}
                     </button>
-                    )}
                   </div>
                 </div>
               )}
@@ -1245,7 +615,7 @@ const Checkout: React.FC = () => {
                       <img
                         src={
                           item.product.images?.[0] ||
-                          "https://via.placeholder.com/80"
+                          "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Crect width='120' height='120' fill='%23ece9e3'/%3E%3Cpath d='M28 82l22-28 15 17 11-13 16 24z' fill='%23c9c6bd'/%3E%3Ccircle cx='44' cy='42' r='9' fill='%23c9c6bd'/%3E%3C/svg%3E"
                         }
                         alt={item.product.name}
                       />
@@ -1294,25 +664,7 @@ const Checkout: React.FC = () => {
                 <Check size={60} />
               </div>
               <h1>تم استلام طلبك بنجاح!</h1>
-              {paidWithTamara && (
-                <div className="payment-success-badge">
-                  <img 
-                    src="https://cdn.tamara.co/assets/svg/tamara-logo-badge-ar.svg" 
-                    alt="Tamara" 
-                  />
-                  <span>تم الدفع بنجاح عبر تمارا ✓</span>
-                </div>
-              )}
-              {paidWithTabby && (
-                <div className="payment-success-badge tabby-success">
-                  <img 
-                    src="https://checkout.tabby.ai/tabby-badge.png" 
-                    alt="Tabby" 
-                  />
-                  <span>تم الدفع بنجاح عبر تابي ✓</span>
-                </div>
-              )}
-              <p>شكراً لك على طلبك. {(paidWithTamara || paidWithTabby) ? 'تم استلام الدفع وسيتم شحن طلبك قريباً.' : 'سنتواصل معك قريباً لتأكيد الطلب.'}</p>
+              <p>شكراً لك على طلبك. سنتواصل معك قريباً لتأكيد الطلب.</p>
 
               <div className="order-actions">
                 <Link to="/account" className="btn btn-primary">

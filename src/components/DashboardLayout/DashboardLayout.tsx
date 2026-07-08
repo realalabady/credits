@@ -5,7 +5,6 @@ import {
   Package,
   ShoppingCart,
   Users,
-  Tags,
   BarChart3,
   Settings,
   LogOut,
@@ -13,7 +12,6 @@ import {
   Bell,
   ChevronDown,
   MessageSquare,
-  Truck,
   ExternalLink,
   Store,
   BellOff,
@@ -34,17 +32,10 @@ const menuItems = [
   },
   { path: "/dashboard/products", icon: Package, label: "المنتجات" },
   { path: "/dashboard/orders", icon: ShoppingCart, label: "الطلبات" },
-  { path: "/dashboard/categories", icon: Tags, label: "التصنيفات" },
   { path: "/dashboard/customers", icon: Users, label: "العملاء" },
   { path: "/dashboard/messages", icon: MessageSquare, label: "الرسائل" },
   { path: "/dashboard/analytics", icon: BarChart3, label: "التقارير" },
   { path: "/dashboard/settings", icon: Settings, label: "الإعدادات" },
-];
-
-const cjMenuItems = [
-  { path: "/dashboard/cj-products", icon: Package, label: "منتجات CJ" },
-  { path: "/dashboard/cj-orders", icon: Truck, label: "طلبات CJ" },
-  { path: "/dashboard/cj-settings", icon: Settings, label: "إعدادات CJ" },
 ];
 
 const DashboardLayout: React.FC = () => {
@@ -177,37 +168,6 @@ const DashboardLayout: React.FC = () => {
               </li>
             ))}
           </ul>
-
-          {/* CJ Dropshipping Section */}
-          <div
-            className="sidebar-section-title"
-            style={{
-              padding: "12px 20px 6px",
-              fontSize: "11px",
-              fontWeight: 700,
-              color: "rgba(255,255,255,0.4)",
-              textTransform: "uppercase",
-              letterSpacing: "1px",
-              marginTop: "8px",
-              borderTop: "1px solid rgba(255,255,255,0.1)",
-            }}
-          >
-            CJ Dropshipping
-          </div>
-          <ul>
-            {cjMenuItems.map((item) => (
-              <li key={item.path}>
-                <Link
-                  to={item.path}
-                  className={`nav-link ${isActive(item.path) ? "active" : ""}`}
-                  onClick={handleNavClick}
-                >
-                  <item.icon size={20} />
-                  <span>{item.label}</span>
-                </Link>
-              </li>
-            ))}
-          </ul>
         </nav>
 
         <div className="sidebar-footer">
@@ -231,7 +191,7 @@ const DashboardLayout: React.FC = () => {
               <Menu size={24} aria-hidden="true" />
             </button>
             <h1 className="page-title">
-              {[...menuItems, ...cjMenuItems].find((item) =>
+              {menuItems.find((item) =>
                 isActive(
                   item.path,
                   "exact" in item

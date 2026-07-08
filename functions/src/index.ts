@@ -7,6 +7,7 @@ import * as paypal from "./paypalClient";
 import * as tamara from "./tamaraClient";
 import { scrapeAmazonProduct, scrapeAmazonWithApi } from "./amazonScraper";
 import { sendOrderConfirmationEmail, sendOrderStatusUpdateEmail } from "./emailService";
+import { sendOwnerEmkanNotification } from "./resendService";
 
 admin.initializeApp();
 
@@ -1006,6 +1007,42 @@ export const onOrderCreated = functions.firestore
       }
     } catch (emailError) {
       console.error(`Error sending confirmation email for ${orderId}:`, emailError);
+    }
+
+    // ===== 1.b تنبيه صاحب المتجر عبر Resend لطلبات إمكان (بانتظار الدفع) =====
+    if (order.paymentMethod === "emkan") {
+      try {
+        const ownerResult = await sendOwnerEmkanNotification({
+          id: orderId,
+          customer: order.customer || "عميل",
+          email: order.email || "",
+          phone: order.phone || "",
+          items: order.items || [],
+          total: order.total || 0,
+          subtotal: order.subtotal,
+          shippingCost: order.shippingCost,
+          paymentMethod: order.paymentMethod,
+          shippingAddress: order.shippingAddress || "",
+          createdAt: order.createdAt?.toDate?.() || new Date(),
+        });
+        if (ownerResult.success) {
+          console.log(`Emkan owner notification sent for order ${orderId}`);
+          await snap.ref.update({
+            ownerNotified: true,
+            ownerNotifiedAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+        } else if (!ownerResult.skipped) {
+          console.error(
+            `Failed to send Emkan owner notification for ${orderId}:`,
+            ownerResult.error,
+          );
+        }
+      } catch (ownerError) {
+        console.error(
+          `Error sending Emkan owner notification for ${orderId}:`,
+          ownerError,
+        );
+      }
     }
 
     // ===== 2. التحقق من إعدادات CJ وإرسال الطلب تلقائياً =====

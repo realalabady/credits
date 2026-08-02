@@ -5,6 +5,8 @@
 
 import { getFunctions, httpsCallable } from "firebase/functions";
 
+import { withStore } from "../config/store";
+
 const functions = getFunctions();
 
 /**
@@ -89,7 +91,7 @@ export async function createTabbyCheckout(
     "tabbyCreateCheckout"
   );
 
-  const result = await createCheckout(request);
+  const result = await createCheckout(withStore(request));
   return result.data;
 }
 
@@ -107,7 +109,9 @@ export async function captureTabbyPayment(
   currency: string;
 }> {
   const capture = httpsCallable(functions, "tabbyCapturePayment");
-  const result = await capture({ paymentId, firestoreOrderId, orderReferenceId });
+  const result = await capture(
+    withStore({ paymentId, firestoreOrderId, orderReferenceId }),
+  );
   return result.data as any;
 }
 
@@ -124,7 +128,7 @@ export async function getTabbyPaymentStatus(
   currency: string;
 }> {
   const getStatus = httpsCallable(functions, "tabbyGetPaymentStatus");
-  const result = await getStatus({ paymentId });
+  const result = await getStatus(withStore({ paymentId }));
   return result.data as any;
 }
 
@@ -136,7 +140,7 @@ export async function saveTabbySettings(
   secretKey: string
 ): Promise<{ success: boolean; message: string }> {
   const saveSettings = httpsCallable(functions, "tabbySaveSettings");
-  const result = await saveSettings({ publicKey, secretKey });
+  const result = await saveSettings(withStore({ publicKey, secretKey }));
   return result.data as any;
 }
 
@@ -148,6 +152,6 @@ export async function testTabbyConnection(
   secretKey: string
 ): Promise<{ success: boolean; message: string }> {
   const testConnection = httpsCallable(functions, "tabbyTestConnection");
-  const result = await testConnection({ publicKey, secretKey });
+  const result = await testConnection(withStore({ publicKey, secretKey }));
   return result.data as any;
 }

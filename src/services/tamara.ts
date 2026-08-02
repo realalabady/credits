@@ -5,6 +5,8 @@
 
 import { getFunctions, httpsCallable } from "firebase/functions";
 
+import { withStore } from "../config/store";
+
 const functions = getFunctions();
 
 /**
@@ -76,7 +78,7 @@ export async function createTamaraCheckout(
     "tamaraCreateCheckout"
   );
 
-  const result = await createCheckout(request);
+  const result = await createCheckout(withStore(request));
   return result.data;
 }
 
@@ -95,7 +97,7 @@ export async function getTamaraPaymentStatus(
   };
 }> {
   const getStatus = httpsCallable(functions, "tamaraGetPaymentStatus");
-  const result = await getStatus({ checkoutId });
+  const result = await getStatus(withStore({ checkoutId }));
   return result.data as any;
 }
 
@@ -115,7 +117,9 @@ export async function authorizeTamaraOrder(
   };
 }> {
   const authorize = httpsCallable(functions, "tamaraAuthorizeOrder");
-  const result = await authorize({ orderId, firestoreOrderId, orderReferenceId });
+  const result = await authorize(
+    withStore({ orderId, firestoreOrderId, orderReferenceId }),
+  );
   return result.data as any;
 }
 
@@ -126,7 +130,7 @@ export async function saveTamaraSettings(
   apiToken: string
 ): Promise<{ success: boolean; message: string }> {
   const saveSettings = httpsCallable(functions, "tamaraSaveSettings");
-  const result = await saveSettings({ apiToken });
+  const result = await saveSettings(withStore({ apiToken }));
   return result.data as any;
 }
 
@@ -137,6 +141,6 @@ export async function testTamaraConnection(
   apiToken: string
 ): Promise<{ success: boolean; message: string }> {
   const testConnection = httpsCallable(functions, "tamaraTestConnection");
-  const result = await testConnection({ apiToken });
+  const result = await testConnection(withStore({ apiToken }));
   return result.data as any;
 }

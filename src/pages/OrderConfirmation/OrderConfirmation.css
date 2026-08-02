@@ -57,7 +57,7 @@
 .confirmation-order-box .order-number {
   font-size: 22px;
   font-weight: 800;
-  color: var(--primary, #d97757);
+  color: var(--primary);
   font-variant-numeric: tabular-nums;
 }
 

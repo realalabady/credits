@@ -3,7 +3,10 @@
  * خدمة التكامل مع تابي - Backend
  */
 
-// مفاتيح Tabby API
+// مفاتيح Tabby API - تُقرأ من stores/{storeId}/settings/tabby قبل كل نداء.
+// حالة عامة داخل الوحدة، والدوال مشتركة بين كل المتاجر: أي مسار يستخدم tabby
+// يجب أن يستدعي initTabbyKeys(storeId) أولاً، وأي استخدام مؤقت (اختبار
+// الاتصال) يجب أن ينهي بـ clearApiKeys().
 let publicKey = "";
 let secretKey = "";
 
@@ -15,6 +18,14 @@ const TABBY_API_URL = "https://api.tabby.ai/api/v2";
 export function setApiKeys(pubKey: string, secKey: string): void {
   publicKey = pubKey;
   secretKey = secKey;
+}
+
+/**
+ * مسح المفاتيح من الحالة العامة حتى لا تتسرب إلى نداء متجر آخر.
+ */
+export function clearApiKeys(): void {
+  publicKey = "";
+  secretKey = "";
 }
 
 /**

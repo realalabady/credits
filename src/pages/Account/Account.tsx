@@ -18,8 +18,9 @@ import {
   Trash2,
 } from "lucide-react";
 import { signOut } from "firebase/auth";
-import { auth, db } from "../../config/firebase";
-import { doc, updateDoc } from "firebase/firestore";
+import { auth } from "../../config/firebase";
+import { updateDoc } from "firebase/firestore";
+import { storeDoc } from "../../config/store";
 import { useStore } from "../../store/useStore";
 import { getUserOrders } from "../../services/firestore";
 import type { FirestoreOrder } from "../../services/firestore";
@@ -147,7 +148,7 @@ const Account: React.FC<AccountProps> = ({ initialTab }) => {
     setLoading(true);
 
     try {
-      const userRef = doc(db, "users", user.id);
+      const userRef = storeDoc("users", user.id);
       const updatedData = {
         name: formData.name,
         phone: formData.phone,
@@ -418,7 +419,7 @@ const Account: React.FC<AccountProps> = ({ initialTab }) => {
                         className="btn btn-primary"
                         onClick={() => navigate("/products")}
                       >
-                        تسوق الآن
+                        تصفح المنتجات
                       </button>
                     </div>
                   ) : (

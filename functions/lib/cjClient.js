@@ -52,10 +52,14 @@ exports.testConnection = testConnection;
 const node_fetch_1 = __importDefault(require("node-fetch"));
 const admin = __importStar(require("firebase-admin"));
 const CJ_BASE_URL = "https://developers.cjdropshipping.com/api2.0/v1";
+// إعدادات CJ خاصة بكل متجر: stores/{storeId}/settings/cjDropshipping.
+// حساب CJ (والتوكن المخزّن معه) لا يُشارك بين المتاجر.
+function cjSettingsRef(storeId) {
+    return admin.firestore().doc(`stores/${storeId}/settings/cjDropshipping`);
+}
 // الحصول على التوكن من Firestore أو إنشاء واحد جديد
-async function getValidAccessToken() {
-    const db = admin.firestore();
-    const settingsDoc = await db.doc("settings/cjDropshipping").get();
+async function getValidAccessToken(storeId) {
+    const settingsDoc = await cjSettingsRef(storeId).get();
     const settings = settingsDoc.data();
     if (!(settings === null || settings === void 0 ? void 0 : settings.email) || !(settings === null || settings === void 0 ? void 0 : settings.apiKey)) {
         throw new Error("بيانات CJ غير مُعدة. يرجى إدخال البريد ومفتاح API في إعدادات CJ.");
@@ -73,7 +77,7 @@ async function getValidAccessToken() {
     if (settings.refreshToken) {
         try {
             const refreshed = await refreshAccessToken(settings.refreshToken);
-            await db.doc("settings/cjDropshipping").update({
+            await cjSettingsRef(storeId).update({
                 accessToken: refreshed.accessToken,
                 refreshToken: refreshed.refreshToken,
                 tokenExpiresAt: new Date(refreshed.accessTokenExpiryDate),
@@ -87,7 +91,7 @@ async function getValidAccessToken() {
     }
     // الحصول على توكن جديد
     const tokens = await getNewAccessToken(settings.email, settings.apiKey);
-    await db.doc("settings/cjDropshipping").update({
+    await cjSettingsRef(storeId).update({
         accessToken: tokens.accessToken,
         refreshToken: tokens.refreshToken,
         tokenExpiresAt: new Date(tokens.accessTokenExpiryDate),
@@ -129,8 +133,8 @@ async function refreshAccessToken(refreshToken) {
     return data.data;
 }
 // طلب عام مع التوكن
-async function cjRequest(endpoint, method = "GET", body, queryParams) {
-    const token = await getValidAccessToken();
+async function cjRequest(storeId, endpoint, method = "GET", body, queryParams) {
+    const token = await getValidAccessToken(storeId);
     let url = `${CJ_BASE_URL}${endpoint}`;
     if (queryParams) {
         const params = new URLSearchParams(queryParams);
@@ -151,8 +155,8 @@ async function cjRequest(endpoint, method = "GET", body, queryParams) {
     return data;
 }
 // ==================== Products ====================
-async function searchProducts(params) {
-    return cjRequest("/product/list", "GET", undefined, {
+async function searchProducts(storeId, params) {
+    return cjRequest(storeId, "/product/list", "GET", undefined, {
         pageNum: String(params.pageNum || 1),
         pageSize: String(params.pageSize || 20),
         ...(params.productNameEn && { productNameEn: params.productNameEn }),
@@ -160,60 +164,59 @@ async function searchProducts(params) {
         ...(params.categoryId && { categoryId: params.categoryId }),
     });
 }
-async function getProductDetail(pid) {
-    return cjRequest("/product/query", "GET", undefined, { pid });
+async function getProductDetail(storeId, pid) {
+    return cjRequest(storeId, "/product/query", "GET", undefined, { pid });
 }
-async function getProductVariants(pid) {
-    return cjRequest("/product/variant/query", "GET", undefined, { pid });
+async function getProductVariants(storeId, pid) {
+    return cjRequest(storeId, "/product/variant/query", "GET", undefined, { pid });
 }
-async function getProductInventory(vid) {
-    return cjRequest("/product/stock/queryByVid", "GET", undefined, { vid });
+async function getProductInventory(storeId, vid) {
+    return cjRequest(storeId, "/product/stock/queryByVid", "GET", undefined, { vid });
 }
-async function getCJCategories() {
-    return cjRequest("/product/getCategory", "GET");
+async function getCJCategories(storeId) {
+    return cjRequest(storeId, "/product/getCategory", "GET");
 }
 // ==================== Orders ====================
-async function createCJOrder(orderData) {
-    return cjRequest("/shopping/order/createOrderV2", "POST", {
+async function createCJOrder(storeId, orderData) {
+    return cjRequest(storeId, "/shopping/order/createOrderV2", "POST", {
         ...orderData,
         payType: 2, // Balance payment
     });
 }
-async function confirmCJOrder(orderId) {
-    return cjRequest("/shopping/order/confirmOrder", "PATCH", { orderId });
+async function confirmCJOrder(storeId, orderId) {
+    return cjRequest(storeId, "/shopping/order/confirmOrder", "PATCH", { orderId });
 }
-async function listCJOrders(params) {
-    return cjRequest("/shopping/order/list", "GET", undefined, {
+async function listCJOrders(storeId, params) {
+    return cjRequest(storeId, "/shopping/order/list", "GET", undefined, {
         pageNum: String(params.pageNum || 1),
         pageSize: String(params.pageSize || 20),
         ...(params.orderStatus && { orderStatus: params.orderStatus }),
     });
 }
-async function queryCJOrder(orderId) {
-    return cjRequest("/shopping/order/getOrderDetail", "GET", undefined, {
+async function queryCJOrder(storeId, orderId) {
+    return cjRequest(storeId, "/shopping/order/getOrderDetail", "GET", undefined, {
         orderId,
     });
 }
 // ==================== Logistics ====================
-async function calculateFreight(params) {
-    return cjRequest("/logistic/freightCalculate", "POST", params);
+async function calculateFreight(storeId, params) {
+    return cjRequest(storeId, "/logistic/freightCalculate", "POST", params);
 }
-async function getTrackingInfo(trackNumber) {
-    return cjRequest("/logistic/getTrackInfo", "GET", undefined, { trackNumber });
+async function getTrackingInfo(storeId, trackNumber) {
+    return cjRequest(storeId, "/logistic/getTrackInfo", "GET", undefined, { trackNumber });
 }
 // ==================== Payment ====================
-async function getCJBalance() {
-    return cjRequest("/shopping/pay/getBalance", "GET");
+async function getCJBalance(storeId) {
+    return cjRequest(storeId, "/shopping/pay/getBalance", "GET");
 }
 // ==================== Test Connection ====================
-async function testConnection(email, apiKey) {
+async function testConnection(storeId, email, apiKey) {
     try {
         console.log("Testing CJ connection with email:", email);
         const tokens = await getNewAccessToken(email, apiKey);
         if (tokens.accessToken) {
             // حفظ التوكن في Firestore بعد النجاح
-            const db = admin.firestore();
-            await db.doc("settings/cjDropshipping").set({
+            await cjSettingsRef(storeId).set({
                 email,
                 ...(apiKey && { apiKey }),
                 accessToken: tokens.accessToken,

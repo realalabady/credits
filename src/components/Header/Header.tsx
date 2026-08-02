@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   Search,
@@ -8,24 +8,22 @@ import {
   X,
   Heart,
   Phone,
-  ChevronDown,
 } from "lucide-react";
 import { useStore } from "../../store/useStore";
 import "./Header.css";
 
+const navLinks = [
+  { to: "/", label: "الرئيسية" },
+  { to: "/products", label: "المنتجات" },
+  { to: "/products?featured=true", label: "العروض" },
+  { to: "/about", label: "من نحن" },
+  { to: "/contact", label: "اتصل بنا" },
+];
+
 const Header: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
-  const [categoriesOpen, setCategoriesOpen] = useState(false);
-  const categoriesRef = useRef<HTMLLIElement>(null);
-  const {
-    cart,
-    user,
-    searchQuery,
-    setSearchQuery,
-    categories,
-    storeInfo,
-  } = useStore();
+  const { cart, user, searchQuery, setSearchQuery, storeInfo } = useStore();
   const navigate = useNavigate();
 
   const cartCount = cart.reduce((count, item) => count + item.quantity, 0);
@@ -38,20 +36,6 @@ const Header: React.FC = () => {
       setSearchOpen(false);
     }
   };
-
-  // إغلاق قائمة التصنيفات عند النقر خارجها
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        categoriesRef.current &&
-        !categoriesRef.current.contains(event.target as Node)
-      ) {
-        setCategoriesOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
 
   return (
     <header className="header">
@@ -68,7 +52,7 @@ const Header: React.FC = () => {
               <div className="header-contact" />
             )}
             <div className="header-promo">
-              🎉 شحن مجاني للطلبات فوق 200 ريال
+              توصيل مجاني داخل المدينة للطلبات فوق 500 ريال
             </div>
             <div className="header-links">
               {user ? (
@@ -193,67 +177,17 @@ const Header: React.FC = () => {
       <nav className={`nav ${mobileMenuOpen ? "nav-open" : ""}`}>
         <div className="container">
           <ul className="nav-menu">
-            <li className="nav-item">
-              <Link to="/" className="nav-link" onClick={() => setMobileMenuOpen(false)}>
-                الرئيسية
-              </Link>
-            </li>
-            <li
-              className={`nav-item has-dropdown ${categoriesOpen ? "open" : ""}`}
-              ref={categoriesRef}
-            >
-              <button
-                type="button"
-                className="nav-link nav-dropdown-toggle"
-                aria-expanded={categoriesOpen}
-                aria-haspopup="true"
-                onClick={() => setCategoriesOpen((o) => !o)}
-                onKeyDown={(e) => {
-                  if (e.key === "Escape") setCategoriesOpen(false);
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    setCategoriesOpen((o) => !o);
-                  }
-                }}
-              >
-                التصنيفات <ChevronDown size={16} aria-hidden="true" />
-              </button>
-              <div className="dropdown-menu">
-                {categories.length > 0 ? (
-                  categories.map((cat) => (
-                    <Link
-                      key={cat.id}
-                      to={`/products?category=${cat.id}`}
-                      onClick={() => {
-                        setMobileMenuOpen(false);
-                        setCategoriesOpen(false);
-                      }}
-                    >
-                      {cat.name}
-                    </Link>
-                  ))
-                ) : (
-                  <span style={{ padding: "10px", color: "var(--gray)" }}>
-                    لا توجد تصنيفات
-                  </span>
-                )}
-              </div>
-            </li>
-            <li className="nav-item">
-              <Link to="/products?featured=true" className="nav-link" onClick={() => setMobileMenuOpen(false)}>
-                العروض
-              </Link>
-            </li>
-            <li className="nav-item">
-              <Link to="/products?new=true" className="nav-link" onClick={() => setMobileMenuOpen(false)}>
-                وصل حديثاً
-              </Link>
-            </li>
-            <li className="nav-item">
-              <Link to="/contact" className="nav-link" onClick={() => setMobileMenuOpen(false)}>
-                اتصل بنا
-              </Link>
-            </li>
+            {navLinks.map(({ to, label }) => (
+              <li className="nav-item" key={to}>
+                <Link
+                  to={to}
+                  className="nav-link"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  {label}
+                </Link>
+              </li>
+            ))}
           </ul>
         </div>
       </nav>

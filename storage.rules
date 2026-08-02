@@ -1,24 +1,28 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    // Product images - public read; write requires an authenticated user
-    // uploading a valid image. Upload UI is already gated behind the
-    // admin-only dashboard. (Cross-service firestore.get admin checks fail
-    // closed in Storage rules, so we keep this simple + reliable. Harden to a
-    // custom-claim check — request.auth.token.admin == true — when available.)
-    match /products/{allPaths=**} {
-      allow read: if true;
-      allow write: if request.auth != null
-        && request.resource.size < 5 * 1024 * 1024  // Max 5MB
-        && request.resource.contentType.matches('image/.*');
-    }
+    // كل متجر يرفع تحت بادئة خاصة به: stores/{storeId}/... حتى لا يتشارك
+    // متجران نفس مسار الصور في نفس الـ bucket.
+    match /stores/{storeId} {
+      // Product images - public read; write requires an authenticated user
+      // uploading a valid image. Upload UI is already gated behind the
+      // admin-only dashboard. (Cross-service firestore.get admin checks fail
+      // closed in Storage rules, so we keep this simple + reliable. Harden to a
+      // custom-claim check — request.auth.token.admin == true — when available.)
+      match /products/{allPaths=**} {
+        allow read: if true;
+        allow write: if request.auth != null
+          && request.resource.size < 5 * 1024 * 1024  // Max 5MB
+          && request.resource.contentType.matches('image/.*');
+      }
 
-    // Category images
-    match /categories/{allPaths=**} {
-      allow read: if true;
-      allow write: if request.auth != null
-        && request.resource.size < 2 * 1024 * 1024
-        && request.resource.contentType.matches('image/.*');
+      // Category images
+      match /categories/{allPaths=**} {
+        allow read: if true;
+        allow write: if request.auth != null
+          && request.resource.size < 2 * 1024 * 1024
+          && request.resource.contentType.matches('image/.*');
+      }
     }
 
     // Deny everything else

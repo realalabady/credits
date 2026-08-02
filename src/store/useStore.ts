@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { Product, CartItem, User, Category } from "../types";
+import type { Product, CartItem, User } from "../types";
 
 export interface StoreInfo {
   storeName: string;
@@ -34,10 +34,6 @@ interface StoreState {
   user: User | null;
   setUser: (user: User | null) => void;
   isAdmin: () => boolean;
-
-  // Categories (من Firestore)
-  categories: Category[];
-  setCategories: (categories: Category[]) => void;
 
   // Products (من Firestore)
   products: Product[];
@@ -149,10 +145,6 @@ export const useStore = create<StoreState>()(
       user: null,
       setUser: (user) => set({ user }),
       isAdmin: () => get().user?.role === "admin",
-
-      // Categories
-      categories: [],
-      setCategories: (categories) => set({ categories }),
 
       // Products
       products: [],

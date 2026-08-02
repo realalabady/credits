@@ -2,6 +2,7 @@ import React, { useEffect, useState, lazy, Suspense } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "./config/firebase";
+import { STORE_ID } from "./config/store";
 import {
   getUserById,
   createOrUpdateUser,
@@ -9,7 +10,6 @@ import {
   subscribeToSettings,
 } from "./services/firestore";
 import { useStore } from "./store/useStore";
-import { CATEGORIES } from "./constants/categories";
 
 // Layouts (loaded immediately - small components)
 import Header from "./components/Header/Header";
@@ -87,13 +87,8 @@ const StoreLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => (
 );
 
 const App: React.FC = () => {
-  const { setUser, setProducts, setCategories, setStoreInfo } = useStore();
+  const { setUser, setProducts, setStoreInfo } = useStore();
   const [loading, setLoading] = useState(true);
-
-  // التصنيفات ثابتة ومُدارة محلياً (جوالات، إلكترونيات، قطع كمبيوتر)
-  useEffect(() => {
-    setCategories(CATEGORIES);
-  }, [setCategories]);
 
   // الاشتراك المركزي في المنتجات وإعدادات المتجر
   useEffect(() => {
@@ -113,23 +108,33 @@ const App: React.FC = () => {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        // جلب بيانات المستخدم من Firestore
-        let userData = await getUserById(firebaseUser.uid);
+        try {
+          // جلب بيانات المستخدم من Firestore
+          let userData = await getUserById(firebaseUser.uid);
 
-        if (!userData) {
-          // إنشاء مستخدم جديد إذا لم يكن موجود
-          userData = {
-            id: firebaseUser.uid,
-            email: firebaseUser.email || "",
-            name: firebaseUser.displayName || "مستخدم",
-            role: "customer",
-            addresses: [],
-            createdAt: new Date(),
-          };
-          await createOrUpdateUser(userData);
+          if (!userData) {
+            // إنشاء مستخدم جديد إذا لم يكن موجود
+            userData = {
+              id: firebaseUser.uid,
+              email: firebaseUser.email || "",
+              name: firebaseUser.displayName || "مستخدم",
+              role: "customer",
+              addresses: [],
+              createdAt: new Date(),
+            };
+            await createOrUpdateUser(userData);
+          }
+
+          setUser(userData);
+        } catch (error) {
+          // بدون هذا الالتقاط يظهر الخطأ كـ "Uncaught (in promise)" بلا مسار،
+          // ويبقى التطبيق عالقاً في شاشة التحميل.
+          console.error(
+            `[Auth] تعذّر قراءة/إنشاء ملف المستخدم في stores/${STORE_ID}/users/${firebaseUser.uid}:`,
+            error,
+          );
+          setUser(null);
         }
-
-        setUser(userData);
       } else {
         setUser(null);
       }

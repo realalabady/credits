@@ -148,7 +148,7 @@
   gap: 16px;
 }
 
-.product-category-tag {
+.product-brand-tag {
   display: inline-block;
   background: rgba(26, 95, 122, 0.1);
   color: var(--primary);
@@ -753,7 +753,7 @@
     padding: 2px;
   }
 
-  .product-category-tag {
+  .product-brand-tag {
     font-size: 11px;
     padding: 3px 10px;
   }

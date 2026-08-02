@@ -97,7 +97,7 @@
   color: var(--primary);
 }
 
-.item-category {
+.item-brand {
   font-size: 13px;
   color: var(--gray);
 }
@@ -375,7 +375,7 @@
     font-size: 13px;
   }
 
-  .item-category {
+  .item-brand {
     font-size: 12px;
   }
 }

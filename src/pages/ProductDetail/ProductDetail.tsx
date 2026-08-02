@@ -39,8 +39,7 @@ const cleanDescription = (desc: string): string => {
 
 const ProductDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const { products, addToCart, toggleWishlist, isInWishlist, categories } =
-    useStore();
+  const { products, addToCart, toggleWishlist, isInWishlist } = useStore();
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [activeTab, setActiveTab] = useState<
@@ -50,10 +49,6 @@ const ProductDetail: React.FC = () => {
   const [selectedVariants, setSelectedVariants] = useState<Record<string, string>>({});
 
   const product = products.find((p) => p.id === id);
-  const categoryName = product
-    ? categories.find((c) => c.id === product.category)?.name ||
-      product.category
-    : "";
 
   // إعادة تعيين عند تغيير المنتج
   useEffect(() => {
@@ -167,9 +162,9 @@ const ProductDetail: React.FC = () => {
     ? Math.round(((product.oldPrice - product.price) / product.oldPrice) * 100)
     : 0;
 
-  // منتجات ذات صلة (نفس التصنيف)
+  // منتجات أخرى معروضة حالياً
   const relatedProducts = products
-    .filter((p) => p.category === product.category && p.id !== product.id)
+    .filter((p) => p.id !== product.id)
     .slice(0, 4);
 
   return (
@@ -180,11 +175,7 @@ const ProductDetail: React.FC = () => {
           <Link to="/">الرئيسية</Link>
           <ChevronRight size={14} />
           <Link to="/products">المنتجات</Link>
-          <ChevronRight size={14} />
-          <Link to={`/products?category=${product.category}`}>
-            {categoryName}
-          </Link>
-          <ChevronRight size={14} />
+          <ChevronRight size={14} aria-hidden="true" />
           <span>{product.name}</span>
         </nav>
 
@@ -219,24 +210,33 @@ const ProductDetail: React.FC = () => {
 
           {/* Product Info */}
           <div className="product-info">
-            <span className="product-category-tag">{categoryName}</span>
+            {product.brand && (
+              <span className="product-brand-tag">{product.brand}</span>
+            )}
             <h1 className="product-title">{product.name}</h1>
             {product.nameEn && (
               <p className="product-name-en">{product.nameEn}</p>
             )}
 
-            {/* Rating */}
-            <div className="product-rating">
-              {[...Array(5)].map((_, i) => (
-                <Star
-                  key={i}
-                  size={18}
-                  fill={i < 4 ? "#fbbf24" : "none"}
-                  color="#fbbf24"
-                />
-              ))}
-              <span className="rating-text">(لا توجد تقييمات بعد)</span>
-            </div>
+            {/* Rating — rendered only when the product actually has one */}
+            {typeof product.rating === "number" && product.rating > 0 && (
+              <div className="product-rating">
+                {[...Array(5)].map((_, i) => (
+                  <Star
+                    key={i}
+                    size={18}
+                    aria-hidden="true"
+                    fill={i < Math.round(product.rating!) ? "#c08a2e" : "none"}
+                    color="#c08a2e"
+                  />
+                ))}
+                {product.reviewCount ? (
+                  <span className="rating-text">
+                    ({product.reviewCount} تقييم)
+                  </span>
+                ) : null}
+              </div>
+            )}
 
             {/* Price */}
             <div className="product-price-section">
@@ -382,24 +382,24 @@ const ProductDetail: React.FC = () => {
             {/* Features */}
             <div className="product-features">
               <div className="feature">
-                <Truck size={20} />
+                <Truck size={20} aria-hidden="true" />
                 <div>
-                  <strong>شحن سريع</strong>
-                  <span>توصيل خلال 3-5 أيام</span>
+                  <strong>توصيل مبرّد</strong>
+                  <span>خلال 24 ساعة داخل المدينة</span>
                 </div>
               </div>
               <div className="feature">
-                <Shield size={20} />
+                <Shield size={20} aria-hidden="true" />
                 <div>
-                  <strong>ضمان شامل</strong>
-                  <span>ضمان على جميع المنتجات</span>
+                  <strong>ذبح حلال</strong>
+                  <span>بإشراف شرعي في مسلخ معتمد</span>
                 </div>
               </div>
               <div className="feature">
-                <RotateCcw size={20} />
+                <RotateCcw size={20} aria-hidden="true" />
                 <div>
-                  <strong>إرجاع مجاني</strong>
-                  <span>خلال 14 يوم</span>
+                  <strong>وزن معتمد</strong>
+                  <span>الوزن الصافي بعد التنظيف</span>
                 </div>
               </div>
             </div>
@@ -465,22 +465,22 @@ const ProductDetail: React.FC = () => {
               <div className="tab-shipping">
                 <div className="shipping-info-block">
                   <h4>
-                    <Truck size={18} /> الشحن
+                    <Truck size={18} aria-hidden="true" /> التوصيل
                   </h4>
                   <ul>
-                    <li>التوصيل خلال 3-5 أيام عمل</li>
-                    <li>شحن مجاني للطلبات فوق 200 ر.س</li>
-                    <li>التوصيل لجميع مناطق المملكة</li>
+                    <li>توصيل مبرّد خلال 24 ساعة داخل المدينة</li>
+                    <li>توصيل مجاني للطلبات فوق 500 ر.س</li>
+                    <li>إمكانية الاستلام المباشر من المسلخ</li>
                   </ul>
                 </div>
                 <div className="shipping-info-block">
                   <h4>
-                    <RotateCcw size={18} /> سياسة الإرجاع
+                    <RotateCcw size={18} aria-hidden="true" /> الاستبدال
                   </h4>
                   <ul>
-                    <li>إرجاع مجاني خلال 14 يوم من الاستلام</li>
-                    <li>المنتج يجب أن يكون بحالته الأصلية</li>
-                    <li>استرداد كامل المبلغ خلال 5 أيام عمل</li>
+                    <li>بلّغنا خلال ساعتين من الاستلام عند وجود ملاحظة</li>
+                    <li>نستبدل الطلب أو نرد المبلغ كاملاً</li>
+                    <li>لا يشمل الطلبات المجهّزة حسب طلب خاص بعد الاستلام</li>
                   </ul>
                 </div>
               </div>
@@ -492,12 +492,9 @@ const ProductDetail: React.FC = () => {
         {relatedProducts.length > 0 && (
           <div className="related-products">
             <div className="section-header">
-              <h2>منتجات ذات صلة</h2>
-              <Link
-                to={`/products?category=${product.category}`}
-                className="view-all"
-              >
-                عرض الكل <ArrowRight size={18} />
+              <h2>معروض أيضاً</h2>
+              <Link to="/products" className="view-all">
+                عرض الكل <ArrowRight size={18} aria-hidden="true" />
               </Link>
             </div>
             <div className="products-grid">

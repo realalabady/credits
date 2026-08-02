@@ -18,13 +18,17 @@ interface StoreBranding {
   supportPhone: string;
 }
 
-const getStoreBranding = async (): Promise<StoreBranding> => {
+// إعدادات كل متجر تحت stores/{storeId}/settings/... — لا يوجد مستند إعدادات
+// مشترك، وإلا أرسل متجر رسائل بهوية متجر آخر ومن حساب SMTP الخاص به.
+const storeSettingsDoc = (
+  storeId: string,
+  id: string,
+): FirebaseFirestore.DocumentReference =>
+  admin.firestore().doc(`stores/${storeId}/settings/${id}`);
+
+const getStoreBranding = async (storeId: string): Promise<StoreBranding> => {
   try {
-    const storeDoc = await admin
-      .firestore()
-      .collection("settings")
-      .doc("store")
-      .get();
+    const storeDoc = await storeSettingsDoc(storeId, "store").get();
     const data = storeDoc.data() || {};
     const store = data.store || data;
     return {
@@ -38,12 +42,10 @@ const getStoreBranding = async (): Promise<StoreBranding> => {
 };
 
 // Get email settings from Firestore
-const getEmailSettings = async (): Promise<EmailSettings | null> => {
-  const settingsDoc = await admin
-    .firestore()
-    .collection("settings")
-    .doc("email")
-    .get();
+const getEmailSettings = async (
+  storeId: string,
+): Promise<EmailSettings | null> => {
+  const settingsDoc = await storeSettingsDoc(storeId, "email").get();
 
   if (!settingsDoc.exists) {
     console.log("Email settings document does not exist - skipping email");
@@ -248,7 +250,7 @@ const getOrderConfirmationTemplate = (
 };
 
 // Send order confirmation email
-export const sendOrderConfirmationEmail = async (order: {
+export const sendOrderConfirmationEmail = async (storeId: string, order: {
   id: string;
   customer: string;
   email: string;
@@ -267,7 +269,7 @@ export const sendOrderConfirmationEmail = async (order: {
   createdAt: Date;
 }): Promise<{ success: boolean; skipped?: boolean; error?: string }> => {
   try {
-    const settings = await getEmailSettings();
+    const settings = await getEmailSettings(storeId);
     
     // If email settings not configured, skip gracefully
     if (!settings) {
@@ -285,7 +287,7 @@ export const sendOrderConfirmationEmail = async (order: {
       },
     });
 
-    const branding = await getStoreBranding();
+    const branding = await getStoreBranding(storeId);
     const htmlContent = getOrderConfirmationTemplate(order, branding);
 
     const mailOptions = {
@@ -309,7 +311,7 @@ export const sendOrderConfirmationEmail = async (order: {
 };
 
 // Order status update email template
-export const sendOrderStatusUpdateEmail = async (order: {
+export const sendOrderStatusUpdateEmail = async (storeId: string, order: {
   id: string;
   customer: string;
   email: string;
@@ -346,7 +348,7 @@ export const sendOrderStatusUpdateEmail = async (order: {
   }
 
   try {
-    const settings = await getEmailSettings();
+    const settings = await getEmailSettings(storeId);
 
     // If email settings not configured, skip gracefully
     if (!settings) {
@@ -354,7 +356,7 @@ export const sendOrderStatusUpdateEmail = async (order: {
       return { success: true, skipped: true };
     }
 
-    const branding = await getStoreBranding();
+    const branding = await getStoreBranding(storeId);
     const storeName = branding.storeName;
 
     const transporter = nodemailer.createTransport({

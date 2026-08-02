@@ -114,7 +114,7 @@ const Shipping = () => {
         <div className="legal-contact-box">
           <h3>هل تحتاج مساعدة بخصوص الشحن؟</h3>
           <p>فريقنا جاهز لمساعدتك</p>
-          <Link to="/contact">تواصل معنا</Link>
+          <Link to="/contact">اتصل بنا</Link>
         </div>
 
         <p className="legal-last-updated">آخر تحديث: يناير 2025</p>

@@ -2,59 +2,61 @@
 
 /* ============================================
    DESIGN SYSTEM TOKENS  (see /DESIGN.md)
-   Quiet-premium electronics retail. One decisive accent (Signal Amber).
+   Quiet-premium livestock retail. One decisive accent (Pasture Olive).
    Light is default; dark is a true theme, not inverted grays.
    Legacy variable names are kept + mapped so existing pages don't break.
    ============================================ */
 :root {
-  /* Neutrals — crisp porcelain canvas, true ink (never #000) */
-  --bg: #fafaf9;
-  --bg-subtle: #f4f3f0;
+  /* Neutrals — cool stone canvas, true ink (never #000) */
+  --bg: #f7f7f5;
+  --bg-subtle: #efefec;
   --surface: #ffffff;
-  --surface-2: #fbfaf8;
-  --ink: #1c1c1e;
-  --ink-soft: #6b6b70;
-  --mid: #a8a7a2;
-  --line: #ece9e3;
-  --line-strong: #dedbd2;
+  --surface-2: #fbfbfa;
+  --ink: #1b1d19;
+  --ink-soft: #66695f;
+  --mid: #a4a79c;
+  --line: #e6e6e1;
+  --line-strong: #d6d7cf;
 
-  /* Signal Amber — the single accent */
-  --primary: #c2410c;
-  --primary-dark: #9a3412;
-  --primary-tint: rgba(194, 65, 12, 0.10);
-  --primary-ring: rgba(194, 65, 12, 0.18);
+  /* Pasture Olive — the single accent, locked across every surface */
+  --primary: #415c30;
+  --primary-dark: #334a26;
+  --primary-tint: rgba(65, 92, 48, 0.10);
+  --primary-ring: rgba(65, 92, 48, 0.20);
+  /* Text/icon color that always sits ON a --primary fill */
+  --on-primary: #ffffff;
 
   --accent-blue: #3f6ea5;
-  --accent-green: #4d7c2f;
+  --accent-green: #415c30;
   --danger: #b42318;
 
   /* Legacy variable names mapped to the palette */
   --secondary: #3f6ea5;
-  --success: #4d7c2f;
-  --warning: #c2410c;
-  --dark: #1c1c1e;
-  --light: #fafaf9;
-  --gray: #6b6b70;
-  --border: #ece9e3;
+  --success: #415c30;
+  --warning: #9a5b16;
+  --dark: #1b1d19;
+  --light: #f7f7f5;
+  --gray: #66695f;
+  --border: #e6e6e1;
 
-  /* Radii — softer, more product-boutique */
+  /* Radii — one scale, applied everywhere (shape consistency lock) */
   --radius-sm: 10px;
   --radius: 14px;
   --radius-lg: 20px;
 
   /* Flat "gradients" (kept as variable names so references don't break) */
-  --gradient-primary: #c2410c;
-  --gradient-success: #4d7c2f;
+  --gradient-primary: #415c30;
+  --gradient-success: #415c30;
   --gradient-danger: #b42318;
-  --gradient-gold: #c2410c;
-  --gradient-dark: #1c1c1e;
+  --gradient-gold: #9a5b16;
+  --gradient-dark: #1b1d19;
 
   /* Layered, tinted shadows — depth without muddiness */
-  --shadow-sm: 0 1px 2px rgba(28, 28, 30, 0.05);
-  --shadow-md: 0 1px 2px rgba(28, 28, 30, 0.04), 0 8px 24px -12px rgba(28, 28, 30, 0.14);
-  --shadow-lg: 0 2px 4px rgba(28, 28, 30, 0.05), 0 18px 40px -16px rgba(28, 28, 30, 0.20);
-  --shadow-primary: 0 8px 24px -10px rgba(194, 65, 12, 0.45);
-  --shadow-success: 0 8px 24px -12px rgba(77, 124, 47, 0.35);
+  --shadow-sm: 0 1px 2px rgba(27, 29, 25, 0.05);
+  --shadow-md: 0 1px 2px rgba(27, 29, 25, 0.04), 0 8px 24px -12px rgba(27, 29, 25, 0.14);
+  --shadow-lg: 0 2px 4px rgba(27, 29, 25, 0.05), 0 18px 40px -16px rgba(27, 29, 25, 0.20);
+  --shadow-primary: 0 8px 24px -10px rgba(65, 92, 48, 0.45);
+  --shadow-success: 0 8px 24px -12px rgba(65, 92, 48, 0.35);
   --shadow-danger: 0 8px 24px -12px rgba(180, 35, 24, 0.35);
 
   color-scheme: light;
@@ -62,41 +64,43 @@
 
 /* True dark theme — stamped via data-theme, with prefers-color-scheme fallback */
 :root[data-theme="dark"] {
-  --bg: #0e0e11;
-  --bg-subtle: #131317;
-  --surface: #17171b;
-  --surface-2: #1c1c21;
-  --ink: #f4f4f5;
-  --ink-soft: #9a9aa2;
-  --mid: #6a6a72;
-  --line: rgba(244, 244, 245, 0.10);
-  --line-strong: rgba(244, 244, 245, 0.16);
+  --bg: #101210;
+  --bg-subtle: #161815;
+  --surface: #1a1d19;
+  --surface-2: #1f221d;
+  --ink: #f2f3ef;
+  --ink-soft: #9ba096;
+  --mid: #6c7166;
+  --line: rgba(242, 243, 239, 0.10);
+  --line-strong: rgba(242, 243, 239, 0.16);
 
-  --primary: #e8703a;
-  --primary-dark: #c2410c;
-  --primary-tint: rgba(232, 112, 58, 0.14);
-  --primary-ring: rgba(232, 112, 58, 0.28);
+  /* Lifted olive so it reads on dark; ink sits on the fill, never white */
+  --primary: #a3cc78;
+  --primary-dark: #b9dc93;
+  --primary-tint: rgba(163, 204, 120, 0.14);
+  --primary-ring: rgba(163, 204, 120, 0.28);
+  --on-primary: #141a0e;
 
   --accent-blue: #6f9fd6;
-  --accent-green: #8bbf5f;
+  --accent-green: #a3cc78;
   --danger: #e06a5f;
 
   --secondary: #6f9fd6;
-  --success: #8bbf5f;
-  --warning: #e8703a;
+  --success: #a3cc78;
+  --warning: #d9a25a;
   /* --dark and --light are used by components as literal dark/light SURFACES
      (e.g. the header top-bar and footer are `background: var(--dark); color: white`).
      They must NOT be inverted here or those bars go white-on-white. */
-  --dark: #17171b;
-  --light: #fafaf9;
-  --gray: #9a9aa2;
-  --border: rgba(244, 244, 245, 0.10);
+  --dark: #1a1d19;
+  --light: #f7f7f5;
+  --gray: #9ba096;
+  --border: rgba(242, 243, 239, 0.10);
 
-  --gradient-primary: #e8703a;
-  --gradient-success: #8bbf5f;
+  --gradient-primary: #a3cc78;
+  --gradient-success: #a3cc78;
   --gradient-danger: #e06a5f;
-  --gradient-gold: #e8703a;
-  --gradient-dark: #17171b;
+  --gradient-gold: #d9a25a;
+  --gradient-dark: #1a1d19;
 
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow-md: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 28px -12px rgba(0, 0, 0, 0.6);
@@ -229,7 +233,7 @@ input, select, textarea {
 
 .btn-primary {
   background: var(--primary);
-  color: #fff;
+  color: var(--on-primary);
 }
 
 .btn-primary:hover {
@@ -248,11 +252,11 @@ input, select, textarea {
 
 .btn-success {
   background: var(--accent-green);
-  color: #fff;
+  color: var(--on-primary);
 }
 
 .btn-success:hover {
-  background: #67784f;
+  background: var(--primary-dark);
 }
 
 .btn-outline {
@@ -263,7 +267,7 @@ input, select, textarea {
 
 .btn-outline:hover {
   background: var(--primary);
-  color: #fff;
+  color: var(--on-primary);
 }
 
 .btn-danger {
@@ -338,8 +342,11 @@ input, select, textarea {
   border-color: var(--mid);
 }
 
-.form-input::placeholder {
-  color: var(--mid);
+/* --mid measures 2.45:1 on --surface, below AA. Placeholders are text, so they
+   use --ink-soft (5.6:1) instead. */
+.form-input::placeholder,
+.form-textarea::placeholder {
+  color: var(--ink-soft);
 }
 
 .form-select {
@@ -482,7 +489,7 @@ input, select, textarea {
 }
 
 .badge-success {
-  background: rgba(120, 140, 93, 0.12);
+  background: var(--primary-tint);
   color: var(--accent-green);
 }
 
@@ -526,6 +533,33 @@ input, select, textarea {
 
 .table tr:hover {
   background: var(--bg);
+}
+
+/* ============================================
+   SCROLL REVEAL
+   Driven by IntersectionObserver (see useReveal), never a scroll listener.
+   Animates transform + opacity only, so it stays on the compositor.
+   ============================================ */
+.reveal-ready .reveal {
+  opacity: 0;
+  transform: translateY(18px);
+  transition:
+    opacity 620ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 620ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition-delay: var(--reveal-delay, 0ms);
+}
+
+.reveal-ready .reveal.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal-ready .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
 }
 
 /* Animations */

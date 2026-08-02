@@ -4,6 +4,8 @@
 import { getFunctions, httpsCallable } from "firebase/functions";
 
 // Initialize functions
+import { withStore } from "../config/store";
+
 const functions = getFunctions();
 
 // Types
@@ -39,13 +41,15 @@ export async function createPayPalOrder(data: {
     functions,
     "paypalCreateOrder"
   );
-  const result = await createOrder({
-    amount: data.amount,
-    currency: data.currency || "SAR",
-    orderId: data.orderId,
-    items: data.items,
-    description: data.description,
-  });
+  const result = await createOrder(
+    withStore({
+      amount: data.amount,
+      currency: data.currency || "SAR",
+      orderId: data.orderId,
+      items: data.items,
+      description: data.description,
+    }),
+  );
   return result.data;
 }
 
@@ -58,7 +62,7 @@ export async function capturePayPalOrder(data: {
     functions,
     "paypalCaptureOrder"
   );
-  const result = await captureOrder(data);
+  const result = await captureOrder(withStore(data));
   return result.data;
 }
 
@@ -70,7 +74,7 @@ export async function getPayPalOrderStatus(
     functions,
     "paypalGetOrderStatus"
   );
-  const result = await getStatus({ paypalOrderId });
+  const result = await getStatus(withStore({ paypalOrderId }));
   return result.data;
 }
 

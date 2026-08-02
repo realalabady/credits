@@ -5,6 +5,8 @@
  */
 import { getFunctions, httpsCallable } from "firebase/functions";
 
+import { withStore } from "../config/store";
+
 const functions = getFunctions();
 
 export interface ScrapedProduct {
@@ -27,7 +29,7 @@ export async function scrapeProductFromUrl(url: string): Promise<ScrapedProduct>
     functions,
     "scrapeProductFromUrl"
   );
-  const result = await callable({ url });
+  const result = await callable(withStore({ url }));
   const data = result.data;
   return {
     ...data,

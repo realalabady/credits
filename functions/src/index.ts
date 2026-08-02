@@ -11,11 +11,75 @@ import { sendOwnerEmkanNotification } from "./resendService";
 
 admin.initializeApp();
 
-// التحقق من أن المستخدم أدمن
-async function verifyAdmin(auth: { uid: string } | undefined): Promise<void> {
+// ==================== Multi-tenant helpers ====================
+// عدة متاجر تتشارك مشروع Firebase واحداً، والدوال (Functions) تُنشر مرة واحدة
+// للمشروع كله. لذلك لا يمكن أخذ هوية المتجر من متغير بيئة — كل نداء يجب أن
+// يحمل storeId، ويجب التحقق من صلاحيات المستدعي داخل ذلك المتجر تحديداً.
+
+const STORE_ID_PATTERN = /^[a-z0-9][a-z0-9-]{0,63}$/;
+
+/** مستند جذر المتجر: stores/{storeId} */
+function storeRef(storeId: string): FirebaseFirestore.DocumentReference {
+  return admin.firestore().doc(`stores/${storeId}`);
+}
+
+/** مجموعة فرعية داخل المتجر: stores/{storeId}/{col} */
+function storeCol(
+  storeId: string,
+  col: string,
+): FirebaseFirestore.CollectionReference {
+  return admin.firestore().collection(`stores/${storeId}/${col}`);
+}
+
+/** مستند داخل مجموعة فرعية: stores/{storeId}/{col}/{id} */
+function storeDoc(
+  storeId: string,
+  col: string,
+  id: string,
+): FirebaseFirestore.DocumentReference {
+  return admin.firestore().doc(`stores/${storeId}/${col}/${id}`);
+}
+
+/** مستند إعدادات داخل المتجر: stores/{storeId}/settings/{id} */
+function settingsRef(
+  storeId: string,
+  id: string,
+): FirebaseFirestore.DocumentReference {
+  return storeDoc(storeId, "settings", id);
+}
+
+/**
+ * يستخرج storeId من حمولة النداء ويتحقق من وجود المتجر وتفعيله.
+ * بدون هذا التحقق يستطيع أي عميل تمرير اسم متجر آخر والكتابة في بياناته.
+ */
+async function requireStoreId(data: unknown): Promise<string> {
+  const raw = (data as Record<string, unknown> | undefined)?.storeId;
+  const storeId = typeof raw === "string" ? raw.trim() : "";
+  if (!storeId || !STORE_ID_PATTERN.test(storeId)) {
+    throw new functions.https.HttpsError(
+      "invalid-argument",
+      "معرف المتجر (storeId) مطلوب",
+    );
+  }
+  const snap = await storeRef(storeId).get();
+  if (!snap.exists || snap.data()?.active === false) {
+    throw new functions.https.HttpsError(
+      "not-found",
+      "المتجر غير موجود أو غير مفعّل",
+    );
+  }
+  return storeId;
+}
+
+// التحقق من أن المستخدم أدمن *في هذا المتجر*. الدور مخزّن تحت
+// stores/{storeId}/users/{uid} حتى لا يصبح أدمن متجر أدمناً لكل المتاجر.
+async function verifyAdmin(
+  auth: { uid: string } | undefined,
+  storeId: string,
+): Promise<void> {
   if (!auth)
     throw new functions.https.HttpsError("unauthenticated", "يجب تسجيل الدخول");
-  const userDoc = await admin.firestore().doc(`users/${auth.uid}`).get();
+  const userDoc = await storeDoc(storeId, "users", auth.uid).get();
   const userData = userDoc.data();
   if (!userData || userData.role !== "admin") {
     throw new functions.https.HttpsError(
@@ -25,10 +89,29 @@ async function verifyAdmin(auth: { uid: string } | undefined): Promise<void> {
   }
 }
 
+/**
+ * نسخة لنقاط HTTP العامة (onRequest) التي لا تملك حمولة callable:
+ * تقرأ storeId من الـ query string وتتحقق من شكله فقط.
+ */
+function parseStoreIdParam(value: unknown): string | null {
+  const storeId = typeof value === "string" ? value.trim() : "";
+  return storeId && STORE_ID_PATTERN.test(storeId) ? storeId : null;
+}
+
+/** يتحقق من المتجر ثم من كون المستدعي أدمن له، ويعيد storeId. */
+async function requireStoreAdmin(
+  data: unknown,
+  context: functions.https.CallableContext,
+): Promise<string> {
+  const storeId = await requireStoreId(data);
+  await verifyAdmin(context.auth ?? undefined, storeId);
+  return storeId;
+}
+
 // ==================== اختبار الاتصال ====================
 export const cjTestConnection = functions.https.onCall(
   async (data, context) => {
-    await verifyAdmin(context.auth ?? undefined);
+    const storeId = await requireStoreAdmin(data, context);
     const { email, apiKey } = data;
     if (!email)
       throw new functions.https.HttpsError("invalid-argument", "بريد CJ مطلوب");
@@ -37,7 +120,7 @@ export const cjTestConnection = functions.https.onCall(
         "invalid-argument",
         "مفتاح API مطلوب",
       );
-    return cj.testConnection(email, apiKey);
+    return cj.testConnection(storeId, email, apiKey);
   },
 );
 
@@ -51,16 +134,41 @@ function wrapError(error: unknown): never {
   throw new functions.https.HttpsError("internal", msg);
 }
 
-// Base URL of the storefront. Configurable so a buyer can rebrand without
-// editing code: set the STORE_BASE_URL env var (or functions config) at deploy.
-const STORE_BASE_URL =
+// Fallbacks only. Each store's real base URL and brand live in its own
+// stores/{storeId}/settings/store document — a single project-wide env var
+// cannot describe several storefronts sharing one Functions deployment.
+const STORE_BASE_URL_FALLBACK =
   process.env.STORE_BASE_URL ||
   functions.config().store?.base_url ||
   "https://jabouri-digital-library.web.app";
 
-// Generic store brand fallback (buyer overrides via settings/store.storeName).
 const STORE_BRAND_FALLBACK =
   process.env.STORE_BRAND || functions.config().store?.brand || "My Store";
+
+/** الهوية المعروضة للمتجر: الرابط الأساسي والاسم التجاري. */
+interface StoreIdentity {
+  baseUrl: string;
+  brand: string;
+}
+
+async function getStoreIdentity(storeId: string): Promise<StoreIdentity> {
+  try {
+    const snap = await settingsRef(storeId, "store").get();
+    const data = (snap.data() || {}) as Record<string, any>;
+    // settings/store يخزّن الحقول داخل كائن `store` (انظر StoreSettings في العميل)
+    const store = (data.store || data) as Record<string, unknown>;
+    const rawUrl = typeof store.baseUrl === "string" ? store.baseUrl.trim() : "";
+    const rawBrand =
+      typeof store.storeName === "string" ? store.storeName.trim() : "";
+    return {
+      baseUrl: (rawUrl || STORE_BASE_URL_FALLBACK).replace(/\/+$/, ""),
+      brand: rawBrand || STORE_BRAND_FALLBACK,
+    };
+  } catch (e) {
+    console.error(`getStoreIdentity(${storeId}) failed:`, e);
+    return { baseUrl: STORE_BASE_URL_FALLBACK, brand: STORE_BRAND_FALLBACK };
+  }
+}
 
 /**
  * Recompute the authoritative order total from Firestore product prices plus
@@ -71,6 +179,7 @@ const STORE_BRAND_FALLBACK =
  * Returns the server-computed total for downstream use.
  */
 async function validateOrderAmount(
+  storeId: string,
   items:
     | Array<{ productId?: string; reference_id?: string; quantity?: number }>
     | undefined,
@@ -83,7 +192,6 @@ async function validateOrderAmount(
     );
   }
 
-  const db = admin.firestore();
   let subtotal = 0;
 
   for (const item of items) {
@@ -95,7 +203,7 @@ async function validateOrderAmount(
         "عنصر طلب غير صالح",
       );
     }
-    const productDoc = await db.doc(`products/${productId}`).get();
+    const productDoc = await storeDoc(storeId, "products", productId).get();
     if (!productDoc.exists) {
       throw new functions.https.HttpsError(
         "invalid-argument",
@@ -120,7 +228,7 @@ async function validateOrderAmount(
   // subtotal reaches the configured threshold.
   let shippingCost = 0;
   try {
-    const settingsDoc = await db.doc("settings/store").get();
+    const settingsDoc = await settingsRef(storeId, "store").get();
     const shipping = settingsDoc.data()?.shipping;
     if (shipping) {
       const threshold = Number(shipping.freeShippingThreshold ?? 0);
@@ -162,15 +270,16 @@ async function validateOrderAmount(
  * so the caller can still proceed when an id is genuinely absent.
  */
 async function verifyPaymentOwnership(opts: {
+  storeId: string;
   uid: string;
   firestoreOrderId?: string;
   pendingRef?: FirebaseFirestore.DocumentSnapshot;
   capturedAmount?: number;
 }): Promise<void> {
-  const { uid, firestoreOrderId, pendingRef, capturedAmount } = opts;
-  const db = admin.firestore();
+  const { storeId, uid, firestoreOrderId, pendingRef, capturedAmount } = opts;
 
-  // 1. pending_payments ownership
+  // 1. pending_payments ownership — يجب أن يخص المستخدم *وهذا المتجر*، وإلا
+  // أمكن لعميل متجر آخر تمرير مرجع دفع غير تابع له.
   if (pendingRef) {
     if (!pendingRef.exists) {
       throw new functions.https.HttpsError(
@@ -184,11 +293,17 @@ async function verifyPaymentOwnership(opts: {
         "هذا الدفع لا يخص المستخدم الحالي",
       );
     }
+    if (pendingRef.data()?.storeId !== storeId) {
+      throw new functions.https.HttpsError(
+        "permission-denied",
+        "سجل الدفع لا يخص هذا المتجر",
+      );
+    }
   }
 
   // 2 & 3. order ownership + amount match
   if (firestoreOrderId) {
-    const orderSnap = await db.doc(`orders/${firestoreOrderId}`).get();
+    const orderSnap = await storeDoc(storeId, "orders", firestoreOrderId).get();
     if (!orderSnap.exists) {
       throw new functions.https.HttpsError("not-found", "الطلب غير موجود");
     }
@@ -256,10 +371,10 @@ function stripHtmlTags(value: string): string {
   return value.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
 }
 
-function normalizeUrl(url: string): string {
+function normalizeUrl(url: string, baseUrl: string): string {
   if (!url) return "";
   if (url.startsWith("//")) return `https:${url}`;
-  if (url.startsWith("/")) return `${STORE_BASE_URL}${url}`;
+  if (url.startsWith("/")) return `${baseUrl}${url}`;
   return url;
 }
 
@@ -272,16 +387,17 @@ function toNumber(value: unknown): number {
   return 0;
 }
 
-function normalizeImages(value: unknown): string[] {
+function normalizeImages(value: unknown, baseUrl: string): string[] {
   if (!Array.isArray(value)) return [];
   const cleaned = value
-    .map((img) => (typeof img === "string" ? normalizeUrl(img.trim()) : ""))
+    .map((img) => (typeof img === "string" ? normalizeUrl(img.trim(), baseUrl) : ""))
     .filter((img) => !!img && !img.startsWith("data:"));
   return [...new Set(cleaned)];
 }
 
 function mapDocToMerchantProduct(
   doc: FirebaseFirestore.QueryDocumentSnapshot,
+  identity: StoreIdentity,
 ): MerchantProduct | null {
   const data = doc.data() as Record<string, unknown>;
   const title =
@@ -292,11 +408,11 @@ function mapDocToMerchantProduct(
     (typeof data.description === "string" && data.description) || title;
   const description = stripHtmlTags(rawDescription).slice(0, 5000);
   const priceValue = toNumber(data.price);
-  const images = normalizeImages(data.images);
+  const images = normalizeImages(data.images, identity.baseUrl);
   const stockValue = toNumber(data.stock);
   const brand =
     (typeof data.supplierName === "string" && data.supplierName.trim()) ||
-    STORE_BRAND_FALLBACK;
+    identity.brand;
 
   if (!title || priceValue <= 0 || images.length === 0) return null;
 
@@ -304,7 +420,7 @@ function mapDocToMerchantProduct(
     id: doc.id,
     title,
     description,
-    link: `${STORE_BASE_URL}/product/${doc.id}`,
+    link: `${identity.baseUrl}/product/${doc.id}`,
     image_link: images[0],
     additional_image_links: images.slice(1, 10),
     availability: stockValue > 0 ? "in_stock" : "out_of_stock",
@@ -314,10 +430,14 @@ function mapDocToMerchantProduct(
   };
 }
 
-async function loadMerchantProducts(limit: number): Promise<MerchantProduct[]> {
-  const snap = await admin.firestore().collection("products").limit(limit).get();
+async function loadMerchantProducts(
+  storeId: string,
+  limit: number,
+): Promise<MerchantProduct[]> {
+  const identity = await getStoreIdentity(storeId);
+  const snap = await storeCol(storeId, "products").limit(limit).get();
   return snap.docs
-    .map((doc) => mapDocToMerchantProduct(doc))
+    .map((doc) => mapDocToMerchantProduct(doc, identity))
     .filter((p): p is MerchantProduct => p !== null);
 }
 
@@ -331,8 +451,10 @@ function normalizeDataSourceName(merchantId: string, dataSourceValue: string): s
   return `accounts/${merchantId}/dataSources/${dataSourceValue}`;
 }
 
-async function getGoogleMerchantSettings(): Promise<GoogleMerchantApiSettings | null> {
-  const settingsDoc = await admin.firestore().doc("settings/googleMerchant").get();
+async function getGoogleMerchantSettings(
+  storeId: string,
+): Promise<GoogleMerchantApiSettings | null> {
+  const settingsDoc = await settingsRef(storeId, "googleMerchant").get();
   const settings = (settingsDoc.data() || {}) as Record<string, unknown>;
 
   const merchantId =
@@ -473,6 +595,7 @@ async function insertProductInputToMerchant(
 }
 
 async function syncProductsToGoogleMerchant(
+  storeId: string,
   limit: number,
   providedSettings?: GoogleMerchantApiSettings,
 ): Promise<{
@@ -483,7 +606,7 @@ async function syncProductsToGoogleMerchant(
   failed: number;
   failures: MerchantSyncResultItem[];
 }> {
-  const settings = providedSettings || (await getGoogleMerchantSettings());
+  const settings = providedSettings || (await getGoogleMerchantSettings(storeId));
 
   if (!settings) {
     throw new Error(
@@ -495,7 +618,7 @@ async function syncProductsToGoogleMerchant(
     throw new Error("Google Merchant sync is disabled in settings.");
   }
 
-  const products = await loadMerchantProducts(limit);
+  const products = await loadMerchantProducts(storeId, limit);
   const accessToken = await getGoogleMerchantAccessToken(settings);
 
   const results: MerchantSyncResultItem[] = [];
@@ -531,16 +654,23 @@ export const merchantProductsApi = functions.https.onRequest(async (req, res) =>
     return;
   }
 
+  const storeId = parseStoreIdParam(req.query.store ?? req.query.storeId);
+  if (!storeId) {
+    res.status(400).json({ error: "store query parameter is required" });
+    return;
+  }
+
   try {
     const parsedLimit = Number(req.query.limit || 1000);
     const limit = Number.isFinite(parsedLimit)
       ? Math.max(1, Math.min(5000, parsedLimit))
       : 1000;
-    const products = await loadMerchantProducts(limit);
+    const identity = await getStoreIdentity(storeId);
+    const products = await loadMerchantProducts(storeId, limit);
 
     res.set("Cache-Control", "public, max-age=300");
     res.status(200).json({
-      source: `${STORE_BRAND_FALLBACK} - API Feed`,
+      source: `${identity.brand} - API Feed`,
       generatedAt: new Date().toISOString(),
       currency: "SAR",
       count: products.length,
@@ -559,12 +689,19 @@ export const merchantProductsFeed = functions.https.onRequest(async (req, res) =
     return;
   }
 
+  const storeId = parseStoreIdParam(req.query.store ?? req.query.storeId);
+  if (!storeId) {
+    res.status(400).send("store query parameter is required");
+    return;
+  }
+
   try {
     const parsedLimit = Number(req.query.limit || 1000);
     const limit = Number.isFinite(parsedLimit)
       ? Math.max(1, Math.min(5000, parsedLimit))
       : 1000;
-    const products = await loadMerchantProducts(limit);
+    const identity = await getStoreIdentity(storeId);
+    const products = await loadMerchantProducts(storeId, limit);
 
     const items = products
       .map((p) => {
@@ -593,9 +730,9 @@ export const merchantProductsFeed = functions.https.onRequest(async (req, res) =
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:g="http://base.google.com/ns/1.0">
   <channel>
-    <title>${xmlEscape(STORE_BRAND_FALLBACK)} Products</title>
-    <link>${STORE_BASE_URL}</link>
-    <description>Google Merchant product feed for ${xmlEscape(STORE_BRAND_FALLBACK)}</description>
+    <title>${xmlEscape(identity.brand)} Products</title>
+    <link>${identity.baseUrl}</link>
+    <description>Google Merchant product feed for ${xmlEscape(identity.brand)}</description>
     ${items}
   </channel>
 </rss>`;
@@ -612,7 +749,7 @@ export const merchantProductsFeed = functions.https.onRequest(async (req, res) =
 // ==================== Google Merchant API Settings ====================
 export const merchantSaveApiSettings = functions.https.onCall(
   async (data, context) => {
-    await verifyAdmin(context.auth ?? undefined);
+    const storeId = await requireStoreAdmin(data, context);
 
     const payload = data as Record<string, unknown>;
     const merchantId = typeof payload.merchantId === "string" ? payload.merchantId.trim() : "";
@@ -653,7 +790,7 @@ export const merchantSaveApiSettings = functions.https.onCall(
 
     const enabled = typeof payload.enabled === "boolean" ? payload.enabled : true;
 
-    const existingDoc = await admin.firestore().doc("settings/googleMerchant").get();
+    const existingDoc = await settingsRef(storeId, "googleMerchant").get();
     const existingData = (existingDoc.data() || {}) as Record<string, unknown>;
 
     const syncTokenInput =
@@ -662,7 +799,7 @@ export const merchantSaveApiSettings = functions.https.onCall(
       typeof existingData.syncToken === "string" ? existingData.syncToken.trim() : "";
     const syncToken = syncTokenInput || syncTokenExisting || randomUUID().replace(/-/g, "");
 
-    await admin.firestore().doc("settings/googleMerchant").set(
+    await settingsRef(storeId, "googleMerchant").set(
       {
         merchantId,
         dataSource: dataSourceInput,
@@ -694,7 +831,7 @@ export const merchantSaveApiSettings = functions.https.onCall(
 
 // ==================== Google Merchant API Sync (Admin Callable) ====================
 export const merchantSyncProducts = functions.https.onCall(async (data, context) => {
-  await verifyAdmin(context.auth ?? undefined);
+  const storeId = await requireStoreAdmin(data, context);
 
   try {
     const payload = data as Record<string, unknown>;
@@ -703,7 +840,7 @@ export const merchantSyncProducts = functions.https.onCall(async (data, context)
       ? Math.max(1, Math.min(5000, parsedLimit))
       : 500;
 
-    return await syncProductsToGoogleMerchant(limit);
+    return await syncProductsToGoogleMerchant(storeId, limit);
   } catch (error) {
     wrapError(error);
   }
@@ -725,12 +862,18 @@ export const merchantSyncProductsApi = functions.https.onRequest(async (req, res
     return;
   }
 
+  const storeId = parseStoreIdParam(req.query.store ?? req.query.storeId);
+  if (!storeId) {
+    res.status(400).json({ error: "store query parameter is required" });
+    return;
+  }
+
   try {
-    const settings = await getGoogleMerchantSettings();
+    const settings = await getGoogleMerchantSettings(storeId);
     if (!settings) {
       res.status(412).json({
         error:
-          "Google Merchant settings are missing. Configure settings/googleMerchant first.",
+          `Google Merchant settings are missing. Configure stores/${storeId}/settings/googleMerchant first.`,
       });
       return;
     }
@@ -758,7 +901,7 @@ export const merchantSyncProductsApi = functions.https.onRequest(async (req, res
       ? Math.max(1, Math.min(5000, parsedLimit))
       : 500;
 
-    const result = await syncProductsToGoogleMerchant(limit, settings);
+    const result = await syncProductsToGoogleMerchant(storeId, limit, settings);
 
     res.status(200).json({
       success: true,
@@ -776,9 +919,9 @@ export const merchantSyncProductsApi = functions.https.onRequest(async (req, res
 // ==================== البحث عن منتجات ====================
 export const cjSearchProducts = functions.https.onCall(
   async (data, context) => {
-    await verifyAdmin(context.auth ?? undefined);
+    const storeId = await requireStoreAdmin(data, context);
     try {
-      const result = await cj.searchProducts({
+      const result = await cj.searchProducts(storeId, {
         productNameEn: data.keyword,
         categoryId: data.categoryId,
         pageNum: data.pageNum || 1,
@@ -800,11 +943,11 @@ export const cjSearchProducts = functions.https.onCall(
 // ==================== تفاصيل منتج ====================
 export const cjGetProductDetail = functions.https.onCall(
   async (data, context) => {
-    await verifyAdmin(context.auth ?? undefined);
+    const storeId = await requireStoreAdmin(data, context);
     if (!data.pid)
       throw new functions.https.HttpsError("invalid-argument", "pid مطلوب");
     try {
-      return await cj.getProductDetail(data.pid);
+      return await cj.getProductDetail(storeId, data.pid);
     } catch (error) {
       wrapError(error);
     }
@@ -814,11 +957,11 @@ export const cjGetProductDetail = functions.https.onCall(
 // ==================== متغيرات المنتج ====================
 export const cjGetProductVariants = functions.https.onCall(
   async (data, context) => {
-    await verifyAdmin(context.auth ?? undefined);
+    const storeId = await requireStoreAdmin(data, context);
     if (!data.pid)
       throw new functions.https.HttpsError("invalid-argument", "pid مطلوب");
     try {
-      return await cj.getProductVariants(data.pid);
+      return await cj.getProductVariants(storeId, data.pid);
     } catch (error) {
       wrapError(error);
     }
@@ -828,11 +971,11 @@ export const cjGetProductVariants = functions.https.onCall(
 // ==================== مخزون المنتج ====================
 export const cjGetProductInventory = functions.https.onCall(
   async (data, context) => {
-    await verifyAdmin(context.auth ?? undefined);
+    const storeId = await requireStoreAdmin(data, context);
     if (!data.vid)
       throw new functions.https.HttpsError("invalid-argument", "vid مطلوب");
     try {
-      return await cj.getProductInventory(data.vid);
+      return await cj.getProductInventory(storeId, data.vid);
     } catch (error) {
       wrapError(error);
     }
@@ -841,10 +984,10 @@ export const cjGetProductInventory = functions.https.onCall(
 
 // ==================== تصنيفات CJ ====================
 export const cjGetCategories = functions.https.onCall(
-  async (_data, context) => {
-    await verifyAdmin(context.auth ?? undefined);
+  async (data, context) => {
+    const storeId = await requireStoreAdmin(data, context);
     try {
-      return await cj.getCJCategories();
+      return await cj.getCJCategories(storeId);
     } catch (error) {
       wrapError(error);
     }
@@ -853,20 +996,18 @@ export const cjGetCategories = functions.https.onCall(
 
 // ==================== إنشاء طلب CJ ====================
 export const cjCreateOrder = functions.https.onCall(async (data, context) => {
-  await verifyAdmin(context.auth ?? undefined);
+  const storeId = await requireStoreAdmin(data, context);
 
   const { firestoreOrderId, orderData } = data;
   if (!orderData)
     throw new functions.https.HttpsError("invalid-argument", "orderData مطلوب");
 
   try {
-    const result: any = await cj.createCJOrder(orderData);
+    const result: any = await cj.createCJOrder(storeId, orderData);
 
     // تحديث الطلب في Firestore مع بيانات CJ
     if (result.result && result.data && firestoreOrderId) {
-      await admin
-        .firestore()
-        .doc(`orders/${firestoreOrderId}`)
+      await storeDoc(storeId, "orders", firestoreOrderId)
         .update({
           isCJOrder: true,
           cjOrderId: result.data.orderId || result.data.orderNum,
@@ -884,11 +1025,11 @@ export const cjCreateOrder = functions.https.onCall(async (data, context) => {
 
 // ==================== تأكيد طلب CJ ====================
 export const cjConfirmOrder = functions.https.onCall(async (data, context) => {
-  await verifyAdmin(context.auth ?? undefined);
+  const storeId = await requireStoreAdmin(data, context);
   if (!data.orderId)
     throw new functions.https.HttpsError("invalid-argument", "orderId مطلوب");
   try {
-    return await cj.confirmCJOrder(data.orderId);
+    return await cj.confirmCJOrder(storeId, data.orderId);
   } catch (error) {
     wrapError(error);
   }
@@ -896,9 +1037,9 @@ export const cjConfirmOrder = functions.https.onCall(async (data, context) => {
 
 // ==================== قائمة طلبات CJ ====================
 export const cjListOrders = functions.https.onCall(async (data, context) => {
-  await verifyAdmin(context.auth ?? undefined);
+  const storeId = await requireStoreAdmin(data, context);
   try {
-    return await cj.listCJOrders({
+    return await cj.listCJOrders(storeId, {
       pageNum: data.pageNum || 1,
       pageSize: data.pageSize || 20,
       orderStatus: data.orderStatus,
@@ -910,14 +1051,14 @@ export const cjListOrders = functions.https.onCall(async (data, context) => {
 
 // ==================== تتبع الشحنة ====================
 export const cjGetTracking = functions.https.onCall(async (data, context) => {
-  await verifyAdmin(context.auth ?? undefined);
+  const storeId = await requireStoreAdmin(data, context);
   if (!data.trackNumber)
     throw new functions.https.HttpsError(
       "invalid-argument",
       "trackNumber مطلوب",
     );
   try {
-    return await cj.getTrackingInfo(data.trackNumber);
+    return await cj.getTrackingInfo(storeId, data.trackNumber);
   } catch (error) {
     wrapError(error);
   }
@@ -926,9 +1067,9 @@ export const cjGetTracking = functions.https.onCall(async (data, context) => {
 // ==================== حساب الشحن ====================
 export const cjCalculateFreight = functions.https.onCall(
   async (data, context) => {
-    await verifyAdmin(context.auth ?? undefined);
+    const storeId = await requireStoreAdmin(data, context);
     try {
-      return await cj.calculateFreight({
+      return await cj.calculateFreight(storeId, {
         startCountryCode: data.startCountryCode || "CN",
         endCountryCode: data.endCountryCode || "SA",
         products: data.products,
@@ -940,10 +1081,10 @@ export const cjCalculateFreight = functions.https.onCall(
 );
 
 // ==================== رصيد CJ ====================
-export const cjGetBalance = functions.https.onCall(async (_data, context) => {
-  await verifyAdmin(context.auth ?? undefined);
+export const cjGetBalance = functions.https.onCall(async (data, context) => {
+  const storeId = await requireStoreAdmin(data, context);
   try {
-    return await cj.getCJBalance();
+    return await cj.getCJBalance(storeId);
   } catch (error) {
     wrapError(error);
   }
@@ -951,10 +1092,11 @@ export const cjGetBalance = functions.https.onCall(async (_data, context) => {
 
 // ==================== إرسال طلب تلقائي بعد الشراء ====================
 export const onOrderCreated = functions.firestore
-  .document("orders/{orderId}")
+  .document("stores/{storeId}/orders/{orderId}")
   .onCreate(async (snap, context) => {
     const order = snap.data();
     const orderId = context.params.orderId;
+    const storeId = context.params.storeId as string;
 
     // ===== 0. تخفيض المخزون داخل معاملة (بدلاً من العميل) =====
     // يُنفَّذ على الخادم لأن قواعد Firestore تمنع العملاء من الكتابة على المنتجات.
@@ -964,7 +1106,7 @@ export const onOrderCreated = functions.firestore
         const productId = item?.productId;
         const quantity = Number(item?.quantity) || 0;
         if (!productId || quantity <= 0) continue;
-        const productRef = db.doc(`products/${productId}`);
+        const productRef = storeDoc(storeId, "products", productId);
         await db.runTransaction(async (tx) => {
           const productSnap = await tx.get(productRef);
           if (!productSnap.exists) return;
@@ -982,7 +1124,7 @@ export const onOrderCreated = functions.firestore
 
     // ===== 1. إرسال إيميل تأكيد الطلب للعميل =====
     try {
-      const emailResult = await sendOrderConfirmationEmail({
+      const emailResult = await sendOrderConfirmationEmail(storeId, {
         id: orderId,
         customer: order.customer || "عميل",
         email: order.email,
@@ -1012,7 +1154,7 @@ export const onOrderCreated = functions.firestore
     // ===== 1.b تنبيه صاحب المتجر عبر Resend لطلبات إمكان (بانتظار الدفع) =====
     if (order.paymentMethod === "emkan") {
       try {
-        const ownerResult = await sendOwnerEmkanNotification({
+        const ownerResult = await sendOwnerEmkanNotification(storeId, {
           id: orderId,
           customer: order.customer || "عميل",
           email: order.email || "",
@@ -1046,10 +1188,7 @@ export const onOrderCreated = functions.firestore
     }
 
     // ===== 2. التحقق من إعدادات CJ وإرسال الطلب تلقائياً =====
-    const settingsDoc = await admin
-      .firestore()
-      .doc("settings/cjDropshipping")
-      .get();
+    const settingsDoc = await settingsRef(storeId, "cjDropshipping").get();
     const settings = settingsDoc.data();
 
     if (!settings?.apiKey || !settings?.autoForwardOrders) {
@@ -1059,10 +1198,11 @@ export const onOrderCreated = functions.firestore
     // البحث عن منتجات CJ في الطلب
     const cjItems: { vid: string; quantity: number }[] = [];
     for (const item of order.items || []) {
-      const productDoc = await admin
-        .firestore()
-        .doc(`products/${item.productId}`)
-        .get();
+      const productDoc = await storeDoc(
+        storeId,
+        "products",
+        item.productId,
+      ).get();
       const product = productDoc.data();
       if (product?.isCJProduct && product?.cjVariantId) {
         cjItems.push({
@@ -1094,7 +1234,7 @@ export const onOrderCreated = functions.firestore
         products: cjItems,
       };
 
-      const result: any = await cj.createCJOrder(cjOrderData);
+      const result: any = await cj.createCJOrder(storeId, cjOrderData);
 
       if (result.result && result.data) {
         await snap.ref.update({
@@ -1118,11 +1258,12 @@ export const onOrderCreated = functions.firestore
 
 // ==================== إرسال إيميل عند تحديث حالة الطلب ====================
 export const onOrderUpdated = functions.firestore
-  .document("orders/{orderId}")
+  .document("stores/{storeId}/orders/{orderId}")
   .onUpdate(async (change, context) => {
     const before = change.before.data();
     const after = change.after.data();
     const orderId = context.params.orderId;
+    const storeId = context.params.storeId as string;
 
     // التحقق من تغيير الحالة
     if (before.status === after.status) {
@@ -1136,7 +1277,7 @@ export const onOrderUpdated = functions.firestore
     }
 
     try {
-      const emailResult = await sendOrderStatusUpdateEmail({
+      const emailResult = await sendOrderStatusUpdateEmail(storeId, {
         id: orderId,
         customer: after.customer || "عميل",
         email: after.email,
@@ -1157,12 +1298,10 @@ export const onOrderUpdated = functions.firestore
 
 // ==================== مزامنة حالة الطلبات (يدوي) ====================
 export const cjSyncOrderStatuses = functions.https.onCall(
-  async (_data, context) => {
-    await verifyAdmin(context.auth ?? undefined);
+  async (data, context) => {
+    const storeId = await requireStoreAdmin(data, context);
 
-    const db = admin.firestore();
-    const ordersSnap = await db
-      .collection("orders")
+    const ordersSnap = await storeCol(storeId, "orders")
       .where("isCJOrder", "==", true)
       .where("status", "not-in", ["delivered", "cancelled"])
       .get();
@@ -1174,7 +1313,7 @@ export const cjSyncOrderStatuses = functions.https.onCall(
       if (!order.cjOrderId) continue;
 
       try {
-        const cjResult: any = await cj.queryCJOrder(order.cjOrderId);
+        const cjResult: any = await cj.queryCJOrder(storeId, order.cjOrderId);
         if (cjResult.result && cjResult.data) {
           const cjOrder = cjResult.data;
           const updates: Record<string, unknown> = {
@@ -1292,6 +1431,7 @@ export const paypalCreateOrder = functions.https.onCall(
       );
     }
 
+    const storeId = await requireStoreId(data);
     const { amount, currency, orderId, description, items } = data;
 
     if (!amount || amount <= 0) {
@@ -1309,19 +1449,26 @@ export const paypalCreateOrder = functions.https.onCall(
     }
 
     // التحقق من المبلغ من جهة الخادم بإعادة حسابه من أسعار المنتجات
-    const validatedAmount = await validateOrderAmount(items, parseFloat(amount));
+    const validatedAmount = await validateOrderAmount(
+      storeId,
+      items,
+      parseFloat(amount),
+    );
 
     try {
+      const identity = await getStoreIdentity(storeId);
       const result = await paypal.createOrder({
         amount: validatedAmount,
         currency: currency || "SAR",
         orderId,
-        description:
-          description || `${STORE_BRAND_FALLBACK} #${orderId}`,
+        description: description || `${identity.brand} #${orderId}`,
       });
 
-      // حفظ معرف PayPal في الطلب المؤقت
+      // حفظ معرف PayPal في الطلب المؤقت.
+      // pending_payments تبقى مجموعة عليا (server-only) ويحمل كل مستند storeId
+      // حتى يستطيع مسار الـ webhook مستقبلاً تحديد المتجر من المرجع وحده.
       await admin.firestore().doc(`pending_payments/${orderId}`).set({
+        storeId,
         userId: context.auth.uid,
         paypalOrderId: result.id,
         amount: validatedAmount,
@@ -1350,6 +1497,7 @@ export const paypalCaptureOrder = functions.https.onCall(
       );
     }
 
+    const storeId = await requireStoreId(data);
     const { paypalOrderId, firestoreOrderId } = data;
 
     if (!paypalOrderId) {
@@ -1365,6 +1513,7 @@ export const paypalCaptureOrder = functions.https.onCall(
       const pendingSnap = await pendingCol
         .where("paypalOrderId", "==", paypalOrderId)
         .where("userId", "==", context.auth.uid)
+        .where("storeId", "==", storeId)
         .limit(1)
         .get();
 
@@ -1378,6 +1527,7 @@ export const paypalCaptureOrder = functions.https.onCall(
       const pendingDoc = pendingSnap.docs[0];
       // التحقق من الملكية ومطابقة المبلغ (المبلغ المُتحقق منه مسبقاً بالريال)
       await verifyPaymentOwnership({
+        storeId,
         uid: context.auth.uid,
         firestoreOrderId,
         pendingRef: pendingDoc,
@@ -1394,7 +1544,7 @@ export const paypalCaptureOrder = functions.https.onCall(
 
       // تحديث الطلب في Firestore إذا موجود
       if (firestoreOrderId) {
-        await admin.firestore().doc(`orders/${firestoreOrderId}`).update({
+        await storeDoc(storeId, "orders", firestoreOrderId).update({
           paymentStatus: "paid",
           paypalOrderId: paypalOrderId,
           paypalCaptureId: result.captureId,
@@ -1448,22 +1598,26 @@ export const paypalGetOrderStatus = functions.https.onCall(
 );
 
 // ==================== Tamara - إعداد مفتاح API ====================
-async function initTamaraToken(): Promise<void> {
+// مفاتيح Tamara محفوظة في حالة عامة داخل الوحدة، والدوال تُنشر مرة واحدة لكل
+// المتاجر. لذلك يجب استدعاء هذه الدالة *قبل كل نداء* لـ tamara حتى لا يُستخدم
+// مفتاح متجر مع متجر آخر في نفس الحاوية الدافئة.
+async function initTamaraToken(storeId: string): Promise<void> {
   // أولاً: التحقق من Firestore
-  const settingsDoc = await admin.firestore().doc("settings/tamara").get();
+  const settingsDoc = await settingsRef(storeId, "tamara").get();
   const settings = settingsDoc.data();
   if (settings?.apiToken) {
     tamara.setApiToken(settings.apiToken);
     return;
   }
 
-  // ثانياً: التحقق من متغير البيئة
+  // ثانياً: التحقق من متغير البيئة (احتياطي على مستوى المشروع)
   const envToken = process.env.TAMARA_API_TOKEN;
   if (envToken) {
     tamara.setApiToken(envToken);
     return;
   }
 
+  tamara.clearApiToken();
   throw new functions.https.HttpsError(
     "failed-precondition",
     "مفتاح Tamara API غير مُعد. يرجى إعداده في الإعدادات."
@@ -1481,6 +1635,7 @@ export const tamaraCreateCheckout = functions.https.onCall(
       );
     }
 
+    const storeId = await requireStoreId(data);
     const {
       orderReferenceId,
       totalAmount,
@@ -1518,12 +1673,13 @@ export const tamaraCreateCheckout = functions.https.onCall(
 
     // التحقق من المبلغ من جهة الخادم
     const validatedTamaraTotal = await validateOrderAmount(
+      storeId,
       items,
       Number(totalAmount),
     );
 
     try {
-      await initTamaraToken();
+      await initTamaraToken(storeId);
 
       const result = await tamara.createCheckoutSession({
         order_reference_id: orderReferenceId,
@@ -1541,6 +1697,7 @@ export const tamaraCreateCheckout = functions.https.onCall(
 
       // حفظ معلومات الدفع المعلق
       await admin.firestore().doc(`pending_payments/${orderReferenceId}`).set({
+        storeId,
         userId: context.auth.uid,
         paymentMethod: "tamara",
         tamaraCheckoutId: result.checkout_id,
@@ -1570,6 +1727,7 @@ export const tamaraGetPaymentStatus = functions.https.onCall(
       );
     }
 
+    const storeId = await requireStoreId(data);
     const { checkoutId } = data;
 
     if (!checkoutId) {
@@ -1580,7 +1738,7 @@ export const tamaraGetPaymentStatus = functions.https.onCall(
     }
 
     try {
-      await initTamaraToken();
+      await initTamaraToken(storeId);
       const result = await tamara.getPaymentStatus(checkoutId);
       return result;
     } catch (error) {
@@ -1601,6 +1759,7 @@ export const tamaraAuthorizeOrder = functions.https.onCall(
       );
     }
 
+    const storeId = await requireStoreId(data);
     const { orderId, firestoreOrderId, orderReferenceId } = data;
 
     if (!orderId) {
@@ -1624,18 +1783,19 @@ export const tamaraAuthorizeOrder = functions.https.onCall(
         capturedAmount = Number(pendingRef.data()?.totalAmount);
       }
       await verifyPaymentOwnership({
+        storeId,
         uid: context.auth.uid,
         firestoreOrderId,
         pendingRef,
         capturedAmount,
       });
 
-      await initTamaraToken();
+      await initTamaraToken(storeId);
       const result = await tamara.authorizeOrder(orderId);
 
       // تحديث الطلب في Firestore
       if (firestoreOrderId) {
-        await admin.firestore().doc(`orders/${firestoreOrderId}`).update({
+        await storeDoc(storeId, "orders", firestoreOrderId).update({
           paymentStatus: "paid",
           tamaraOrderId: orderId,
           tamaraStatus: result.status,
@@ -1656,7 +1816,7 @@ export const tamaraAuthorizeOrder = functions.https.onCall(
 // ==================== Tamara - حفظ إعدادات API ====================
 export const tamaraSaveSettings = functions.https.onCall(
   async (data, context) => {
-    await verifyAdmin(context.auth ?? undefined);
+    const storeId = await requireStoreAdmin(data, context);
 
     const { apiToken } = data;
 
@@ -1668,7 +1828,7 @@ export const tamaraSaveSettings = functions.https.onCall(
     }
 
     try {
-      await admin.firestore().doc("settings/tamara").set({
+      await settingsRef(storeId, "tamara").set({
         apiToken,
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedBy: context.auth!.uid,
@@ -1686,7 +1846,7 @@ export const tamaraSaveSettings = functions.https.onCall(
 // ==================== Tamara - اختبار الاتصال ====================
 export const tamaraTestConnection = functions.https.onCall(
   async (data, context) => {
-    await verifyAdmin(context.auth ?? undefined);
+    await requireStoreAdmin(data, context);
 
     const { apiToken } = data;
 
@@ -1717,6 +1877,10 @@ export const tamaraTestConnection = functions.https.onCall(
       console.error("Tamara test connection error:", error);
       const msg = error instanceof Error ? error.message : "فشل الاتصال بـ Tamara";
       throw new functions.https.HttpsError("internal", msg);
+    } finally {
+      // لا نترك مفتاح اختبار في الحالة العامة: الحاوية الدافئة قد تخدم
+      // متجراً آخر في النداء التالي.
+      tamara.clearApiToken();
     }
   }
 );
@@ -1724,9 +1888,11 @@ export const tamaraTestConnection = functions.https.onCall(
 // ==================== Tabby - إعداد مفاتيح API ====================
 import * as tabby from "./tabbyClient";
 
-async function initTabbyKeys(): Promise<void> {
+// نفس ملاحظة initTamaraToken: الحالة عامة داخل الوحدة، فيجب إعادة التهيئة
+// لكل متجر قبل كل نداء.
+async function initTabbyKeys(storeId: string): Promise<void> {
   // أولاً: التحقق من Firestore
-  const settingsDoc = await admin.firestore().doc("settings/tabby").get();
+  const settingsDoc = await settingsRef(storeId, "tabby").get();
   const settings = settingsDoc.data();
   if (settings?.publicKey && settings?.secretKey) {
     tabby.setApiKeys(settings.publicKey, settings.secretKey);
@@ -1741,6 +1907,7 @@ async function initTabbyKeys(): Promise<void> {
     return;
   }
 
+  tabby.clearApiKeys();
   throw new functions.https.HttpsError(
     "failed-precondition",
     "مفاتيح Tabby API غير مُعدة. يرجى إعدادها في الإعدادات."
@@ -1758,6 +1925,7 @@ export const tabbyCreateCheckout = functions.https.onCall(
       );
     }
 
+    const storeId = await requireStoreId(data);
     const {
       amount,
       currency,
@@ -1794,20 +1962,20 @@ export const tabbyCreateCheckout = functions.https.onCall(
 
     // التحقق من المبلغ من جهة الخادم
     const validatedTabbyAmount = await validateOrderAmount(
+      storeId,
       items,
       parseFloat(amount),
     );
 
     try {
-      await initTabbyKeys();
+      await initTabbyKeys(storeId);
 
       // جلب بيانات المستخدم لتحسين buyer_history
-      const userDoc = await admin.firestore().doc(`users/${context.auth.uid}`).get();
+      const userDoc = await storeDoc(storeId, "users", context.auth.uid).get();
       const userData = userDoc.data();
-      
-      // حساب عدد الطلبات السابقة للمستخدم
-      const ordersSnapshot = await admin.firestore()
-        .collection("orders")
+
+      // حساب عدد الطلبات السابقة للمستخدم في هذا المتجر
+      const ordersSnapshot = await storeCol(storeId, "orders")
         .where("userId", "==", context.auth.uid)
         .where("paymentStatus", "==", "paid")
         .get();
@@ -1850,6 +2018,7 @@ export const tabbyCreateCheckout = functions.https.onCall(
 
       // حفظ معلومات الدفع المعلق
       await admin.firestore().doc(`pending_payments/${order_reference_id}`).set({
+        storeId,
         userId: context.auth.uid,
         paymentMethod: "tabby",
         tabbySessionId: result.id,
@@ -1878,6 +2047,7 @@ export const tabbyCapturePayment = functions.https.onCall(
       );
     }
 
+    const storeId = await requireStoreId(data);
     const { paymentId, firestoreOrderId, orderReferenceId } = data;
 
     if (!paymentId) {
@@ -1901,18 +2071,19 @@ export const tabbyCapturePayment = functions.https.onCall(
         capturedAmount = Number(pendingRef.data()?.amount);
       }
       await verifyPaymentOwnership({
+        storeId,
         uid: context.auth.uid,
         firestoreOrderId,
         pendingRef,
         capturedAmount,
       });
 
-      await initTabbyKeys();
+      await initTabbyKeys(storeId);
       const result = await tabby.capturePayment(paymentId);
 
       // تحديث الطلب في Firestore
       if (firestoreOrderId) {
-        await admin.firestore().doc(`orders/${firestoreOrderId}`).update({
+        await storeDoc(storeId, "orders", firestoreOrderId).update({
           paymentStatus: "paid",
           tabbyPaymentId: paymentId,
           tabbyStatus: result.status,
@@ -1940,6 +2111,7 @@ export const tabbyGetPaymentStatus = functions.https.onCall(
       );
     }
 
+    const storeId = await requireStoreId(data);
     const { paymentId } = data;
 
     if (!paymentId) {
@@ -1950,7 +2122,7 @@ export const tabbyGetPaymentStatus = functions.https.onCall(
     }
 
     try {
-      await initTabbyKeys();
+      await initTabbyKeys(storeId);
       const result = await tabby.getPaymentStatus(paymentId);
       return result;
     } catch (error) {
@@ -1964,7 +2136,7 @@ export const tabbyGetPaymentStatus = functions.https.onCall(
 // ==================== Tabby - حفظ إعدادات API ====================
 export const tabbySaveSettings = functions.https.onCall(
   async (data, context) => {
-    await verifyAdmin(context.auth ?? undefined);
+    const storeId = await requireStoreAdmin(data, context);
 
     const { publicKey, secretKey } = data;
 
@@ -1976,7 +2148,7 @@ export const tabbySaveSettings = functions.https.onCall(
     }
 
     try {
-      await admin.firestore().doc("settings/tabby").set({
+      await settingsRef(storeId, "tabby").set({
         publicKey,
         secretKey,
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -1995,7 +2167,7 @@ export const tabbySaveSettings = functions.https.onCall(
 // ==================== Tabby - اختبار الاتصال ====================
 export const tabbyTestConnection = functions.https.onCall(
   async (data, context) => {
-    await verifyAdmin(context.auth ?? undefined);
+    await requireStoreAdmin(data, context);
 
     const { publicKey, secretKey } = data;
 
@@ -2020,6 +2192,9 @@ export const tabbyTestConnection = functions.https.onCall(
       console.error("Tabby test connection error:", error);
       const msg = error instanceof Error ? error.message : "فشل الاتصال بـ Tabby";
       throw new functions.https.HttpsError("internal", msg);
+    } finally {
+      // لا نترك مفاتيح اختبار في الحالة العامة (انظر tamaraTestConnection).
+      tabby.clearApiKeys();
     }
   }
 );
@@ -2393,7 +2568,7 @@ function parseGeneric(html: string, url: string): ScrapedProduct {
 export const scrapeProductFromUrl = functions
   .runWith({ timeoutSeconds: 120, memory: "1GB" })
   .https.onCall(async (data, context) => {
-    await verifyAdmin(context.auth ?? undefined);
+    await requireStoreAdmin(data, context);
 
     const { url } = data;
 

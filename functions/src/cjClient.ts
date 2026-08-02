@@ -10,10 +10,15 @@ interface CJTokens {
   refreshTokenExpiryDate: string;
 }
 
+// إعدادات CJ خاصة بكل متجر: stores/{storeId}/settings/cjDropshipping.
+// حساب CJ (والتوكن المخزّن معه) لا يُشارك بين المتاجر.
+function cjSettingsRef(storeId: string): FirebaseFirestore.DocumentReference {
+  return admin.firestore().doc(`stores/${storeId}/settings/cjDropshipping`);
+}
+
 // الحصول على التوكن من Firestore أو إنشاء واحد جديد
-async function getValidAccessToken(): Promise<string> {
-  const db = admin.firestore();
-  const settingsDoc = await db.doc("settings/cjDropshipping").get();
+async function getValidAccessToken(storeId: string): Promise<string> {
+  const settingsDoc = await cjSettingsRef(storeId).get();
   const settings = settingsDoc.data();
 
   if (!settings?.email || !settings?.apiKey) {
@@ -36,7 +41,7 @@ async function getValidAccessToken(): Promise<string> {
   if (settings.refreshToken) {
     try {
       const refreshed = await refreshAccessToken(settings.refreshToken);
-      await db.doc("settings/cjDropshipping").update({
+      await cjSettingsRef(storeId).update({
         accessToken: refreshed.accessToken,
         refreshToken: refreshed.refreshToken,
         tokenExpiresAt: new Date(refreshed.accessTokenExpiryDate),
@@ -50,7 +55,7 @@ async function getValidAccessToken(): Promise<string> {
 
   // الحصول على توكن جديد
   const tokens = await getNewAccessToken(settings.email, settings.apiKey);
-  await db.doc("settings/cjDropshipping").update({
+  await cjSettingsRef(storeId).update({
     accessToken: tokens.accessToken,
     refreshToken: tokens.refreshToken,
     tokenExpiresAt: new Date(tokens.accessTokenExpiryDate),
@@ -110,12 +115,13 @@ async function refreshAccessToken(refreshToken: string): Promise<CJTokens> {
 
 // طلب عام مع التوكن
 async function cjRequest(
+  storeId: string,
   endpoint: string,
   method: "GET" | "POST" | "PATCH" = "GET",
   body?: Record<string, unknown>,
   queryParams?: Record<string, string>,
 ): Promise<unknown> {
-  const token = await getValidAccessToken();
+  const token = await getValidAccessToken(storeId);
 
   let url = `${CJ_BASE_URL}${endpoint}`;
   if (queryParams) {
@@ -146,7 +152,7 @@ async function cjRequest(
 
 // ==================== Products ====================
 
-export async function searchProducts(params: {
+export async function searchProducts(storeId: string, params: {
   categoryKeyword?: string;
   pageNum?: number;
   pageSize?: number;
@@ -155,7 +161,7 @@ export async function searchProducts(params: {
   minPrice?: number;
   maxPrice?: number;
 }): Promise<unknown> {
-  return cjRequest("/product/list", "GET", undefined, {
+  return cjRequest(storeId, "/product/list", "GET", undefined, {
     pageNum: String(params.pageNum || 1),
     pageSize: String(params.pageSize || 20),
     ...(params.productNameEn && { productNameEn: params.productNameEn }),
@@ -164,25 +170,25 @@ export async function searchProducts(params: {
   });
 }
 
-export async function getProductDetail(pid: string): Promise<unknown> {
-  return cjRequest("/product/query", "GET", undefined, { pid });
+export async function getProductDetail(storeId: string, pid: string): Promise<unknown> {
+  return cjRequest(storeId, "/product/query", "GET", undefined, { pid });
 }
 
-export async function getProductVariants(pid: string): Promise<unknown> {
-  return cjRequest("/product/variant/query", "GET", undefined, { pid });
+export async function getProductVariants(storeId: string, pid: string): Promise<unknown> {
+  return cjRequest(storeId, "/product/variant/query", "GET", undefined, { pid });
 }
 
-export async function getProductInventory(vid: string): Promise<unknown> {
-  return cjRequest("/product/stock/queryByVid", "GET", undefined, { vid });
+export async function getProductInventory(storeId: string, vid: string): Promise<unknown> {
+  return cjRequest(storeId, "/product/stock/queryByVid", "GET", undefined, { vid });
 }
 
-export async function getCJCategories(): Promise<unknown> {
-  return cjRequest("/product/getCategory", "GET");
+export async function getCJCategories(storeId: string): Promise<unknown> {
+  return cjRequest(storeId, "/product/getCategory", "GET");
 }
 
 // ==================== Orders ====================
 
-export async function createCJOrder(orderData: {
+export async function createCJOrder(storeId: string, orderData: {
   orderNumber: string;
   shippingZip: string;
   shippingCountryCode: string;
@@ -197,57 +203,58 @@ export async function createCJOrder(orderData: {
   logisticName: string;
   products: { vid: string; quantity: number }[];
 }): Promise<unknown> {
-  return cjRequest("/shopping/order/createOrderV2", "POST", {
+  return cjRequest(storeId, "/shopping/order/createOrderV2", "POST", {
     ...orderData,
     payType: 2, // Balance payment
   });
 }
 
-export async function confirmCJOrder(orderId: string): Promise<unknown> {
-  return cjRequest("/shopping/order/confirmOrder", "PATCH", { orderId });
+export async function confirmCJOrder(storeId: string, orderId: string): Promise<unknown> {
+  return cjRequest(storeId, "/shopping/order/confirmOrder", "PATCH", { orderId });
 }
 
-export async function listCJOrders(params: {
+export async function listCJOrders(storeId: string, params: {
   pageNum?: number;
   pageSize?: number;
   orderStatus?: string;
 }): Promise<unknown> {
-  return cjRequest("/shopping/order/list", "GET", undefined, {
+  return cjRequest(storeId, "/shopping/order/list", "GET", undefined, {
     pageNum: String(params.pageNum || 1),
     pageSize: String(params.pageSize || 20),
     ...(params.orderStatus && { orderStatus: params.orderStatus }),
   });
 }
 
-export async function queryCJOrder(orderId: string): Promise<unknown> {
-  return cjRequest("/shopping/order/getOrderDetail", "GET", undefined, {
+export async function queryCJOrder(storeId: string, orderId: string): Promise<unknown> {
+  return cjRequest(storeId, "/shopping/order/getOrderDetail", "GET", undefined, {
     orderId,
   });
 }
 
 // ==================== Logistics ====================
 
-export async function calculateFreight(params: {
+export async function calculateFreight(storeId: string, params: {
   startCountryCode: string;
   endCountryCode: string;
   products: { vid: string; quantity: number }[];
 }): Promise<unknown> {
-  return cjRequest("/logistic/freightCalculate", "POST", params);
+  return cjRequest(storeId, "/logistic/freightCalculate", "POST", params);
 }
 
-export async function getTrackingInfo(trackNumber: string): Promise<unknown> {
-  return cjRequest("/logistic/getTrackInfo", "GET", undefined, { trackNumber });
+export async function getTrackingInfo(storeId: string, trackNumber: string): Promise<unknown> {
+  return cjRequest(storeId, "/logistic/getTrackInfo", "GET", undefined, { trackNumber });
 }
 
 // ==================== Payment ====================
 
-export async function getCJBalance(): Promise<unknown> {
-  return cjRequest("/shopping/pay/getBalance", "GET");
+export async function getCJBalance(storeId: string): Promise<unknown> {
+  return cjRequest(storeId, "/shopping/pay/getBalance", "GET");
 }
 
 // ==================== Test Connection ====================
 
 export async function testConnection(
+  storeId: string,
   email: string,
   apiKey: string,
 ): Promise<{ success: boolean; message: string }> {
@@ -256,8 +263,7 @@ export async function testConnection(
     const tokens = await getNewAccessToken(email, apiKey);
     if (tokens.accessToken) {
       // حفظ التوكن في Firestore بعد النجاح
-      const db = admin.firestore();
-      await db.doc("settings/cjDropshipping").set(
+      await cjSettingsRef(storeId).set(
         {
           email,
           ...(apiKey && { apiKey }),

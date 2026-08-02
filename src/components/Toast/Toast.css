@@ -68,10 +68,10 @@
 }
 
 .toast-info {
-  border-inline-start-color: var(--primary, #d97757);
+  border-inline-start-color: var(--primary);
 }
 .toast-info .toast-icon {
-  color: var(--primary, #d97757);
+  color: var(--primary);
 }
 
 @keyframes toast-in {

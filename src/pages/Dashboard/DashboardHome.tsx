@@ -4,7 +4,7 @@ import {
   DollarSign,
   ShoppingCart,
   Package,
-  Tags,
+  PackageX,
   TrendingUp,
   TrendingDown,
   Inbox,
@@ -19,12 +19,12 @@ import type { Order } from "../../services/firestore";
 import "./DashboardHome.css";
 
 const DashboardHome: React.FC = () => {
-  const { products, categories } = useStore();
+  const { products } = useStore();
   const [orders, setOrders] = useState<Order[]>([]);
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [chartRange, setChartRange] = useState<"6" | "12">("6");
 
-  // الاشتراك في الطلبات فقط (المنتجات والتصنيفات تأتي من App.tsx)
+  // الاشتراك في الطلبات فقط (المنتجات تأتي من App.tsx)
   useEffect(() => {
     const unsubscribeOrders = subscribeToOrders((firestoreOrders) => {
       setOrders(firestoreOrders);
@@ -173,11 +173,11 @@ const DashboardHome: React.FC = () => {
       color: "#8b5cf6",
     },
     {
-      title: "التصنيفات",
-      value: categories.length.toString(),
+      title: "نفذت الكمية",
+      value: products.filter((p) => p.stock === 0).length.toString(),
       change: "",
       trend: "up" as const,
-      icon: Tags,
+      icon: PackageX,
       color: "#f59e0b",
     },
   ];

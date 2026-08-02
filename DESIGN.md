@@ -1,6 +1,6 @@
-# Design System: Estore — Arabic Phone & Electronics Store
+# Design System: Estore - Arabic Livestock (Sheep) Store
 
-> RTL-first (Arabic primary, `dir="rtl"`). Premium consumer-electronics retail.
+> RTL-first (Arabic primary, `dir="rtl"`). Trust-first livestock retail.
 > This file is the single source of truth for the visual redesign. Values are
 > exact; adapt component code to these tokens rather than inventing new ones.
 
@@ -8,10 +8,10 @@
 
 A calm, confident, **"daily-app balanced"** storefront (Density 4) with **offset
 asymmetric** composition (Variance 7) and **fluid spring-physics** motion
-(Motion 6). The mood is *quiet-premium electronics boutique* — think a
-well-lit Apple-adjacent showroom rendered for Arabic readers: generous
-whitespace, one decisive accent, product photography doing the heavy lifting,
-zero visual noise. Not flashy, not "techy-neon" — expensive through restraint.
+(Motion 4). The mood is *grounded pastoral premium*: generous whitespace, one
+decisive accent, real farm and flock photography doing the heavy lifting, zero
+visual noise. Deliberately NOT the beige + brass + espresso palette that every
+artisan-goods site defaults to. Expensive through restraint, not decoration.
 
 Supports light and dark. Light is the default retail canvas; dark is a true
 theme (not inverted grays), stamped via `:root[data-theme="dark"]`.
@@ -19,21 +19,22 @@ theme (not inverted grays), stamped via `:root[data-theme="dark"]`.
 ## 2. Color Palette & Roles
 
 **Light (default)**
-- **Porcelain** (`#FAFAF9`) — Primary page canvas
-- **Pure Surface** (`#FFFFFF`) — Cards, product tiles, sheets
-- **Ink** (`#1C1C1E`) — Primary text (never `#000`)
-- **Graphite** (`#6B6B70`) — Secondary text, metadata, prices-strikethrough
-- **Hairline** (`rgba(28,28,30,0.08)`) — 1px borders, dividers
-- **Signal Amber** (`#C2410C`) — SINGLE accent: CTAs, active nav, focus rings, sale price. Saturation kept < 80%.
-- **Success Moss** (`#3F6212`) — In-stock / order-confirmed only (semantic, not decorative)
+- **Stone** (`#F7F7F5`) - Primary page canvas
+- **Pure Surface** (`#FFFFFF`) - Cards, product tiles, sheets
+- **Ink** (`#1B1D19`) - Primary text (never `#000`)
+- **Graphite** (`#66695F`) - Secondary text, metadata, prices-strikethrough
+- **Hairline** (`#E6E6E1`) - 1px borders, dividers
+- **Pasture Olive** (`#415C30`) - SINGLE accent: CTAs, active nav, focus rings, active chips. White on this fill measures 7.5:1 (AAA).
+- **On-Accent** (`--on-primary`, `#FFFFFF`) - the ONLY text/icon color allowed on a `--primary` fill. Never hardcode `#fff` against the accent.
+- **Success** reuses Pasture Olive - in-stock / order-confirmed only (semantic, not decorative)
 
 **Dark**
-- **Obsidian** (`#0E0E11`) — Page canvas (not pure black)
-- **Slate Surface** (`#17171B`) — Cards
-- **Porcelain Text** (`#F4F4F5`) — Primary text
-- **Ash** (`#9A9AA2`) — Secondary text
-- **Hairline Dark** (`rgba(244,244,245,0.10)`)
-- **Signal Amber** stays `#E8703A` (lifted for dark contrast)
+- **Obsidian** (`#101210`) - Page canvas (not pure black)
+- **Slate Surface** (`#1A1D19`) - Cards
+- **Stone Text** (`#F2F3EF`) - Primary text
+- **Ash** (`#9BA096`) - Secondary text
+- **Hairline Dark** (`rgba(242,243,239,0.10)`)
+- **Pasture Olive** lifts to `#A3CC78`, and `--on-primary` flips to ink `#141A0E` so accent fills stay legible
 
 Rules: max **1** accent. No purple/blue neon, no gradient text, no oversaturation.
 One palette throughout — no warm/cool gray drift.
@@ -53,12 +54,12 @@ Prices always `font-variant-numeric: tabular-nums;` so columns align.
 
 ## 4. Component Stylings
 
-- **Buttons:** Flat, no outer glow. Primary = Signal Amber fill, `border-radius: 12px`, tactile `translateY(1px)` on `:active`. Secondary = ghost with Hairline border. Min height `44px`. One primary CTA per view.
+- **Buttons:** Flat, no outer glow. Primary = Pasture Olive fill with `--on-primary` label, `border-radius: 10px`, tactile `translateY(1px)` on `:active`. Secondary = ghost with Hairline border. Min height `44px`. One primary CTA per view.
 - **Product cards:** Pure Surface, `border-radius: 20px`, `1px Hairline` border, **diffused** shadow `0 1px 2px rgba(28,28,30,.04), 0 8px 24px -12px rgba(28,28,30,.10)`. Image top, generous internal padding (`16px`), price in mono, one-line title clamp. Hover: lift `-4px` + shadow deepen (spring). No borders *and* heavy shadow both — pick elevation intent.
-- **Inputs (checkout/forms):** Label above, `12px` radius, `1px Hairline`, focus ring = 2px Signal Amber. Error text below in a muted red, never shouting. Keep the existing RTL field layout.
+- **Inputs (checkout/forms):** Label above, `12px` radius, `1px Hairline`, focus ring = 2px Pasture Olive. Error text below in a muted red, never shouting. Keep the existing RTL field layout.
 - **Loaders:** Skeleton shimmer matching the exact card/list dimensions. Kill circular spinners on page/list loads.
 - **Empty states:** Composed — a line-art glyph + one calm sentence + one action (e.g. empty cart → "ابدأ التسوق"). Not bare "لا يوجد".
-- **Badges:** Sale/new as small mono uppercase chips, Signal Amber text on tinted amber `rgba(194,65,12,.10)`.
+- **Badges:** Sale/new as small pill chips, Pasture Olive text on `--primary-tint` `rgba(65,92,48,.10)`.
 
 ## 5. Layout Principles
 

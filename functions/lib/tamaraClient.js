@@ -5,6 +5,7 @@
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.setApiToken = setApiToken;
+exports.clearApiToken = clearApiToken;
 exports.createCheckoutSession = createCheckoutSession;
 exports.getOrderDetails = getOrderDetails;
 exports.getPaymentStatus = getPaymentStatus;
@@ -18,13 +19,22 @@ const TAMARA_SANDBOX_URL = "https://api-sandbox.tamara.co";
 const TAMARA_PRODUCTION_URL = "https://api.tamara.co";
 // استخدام Production (Live)
 const TAMARA_API_URL = TAMARA_PRODUCTION_URL;
-// مفتاح API - سيتم تخزينه في Firestore settings
+// مفتاح API - يُقرأ من stores/{storeId}/settings/tamara قبل كل نداء.
+// حالة عامة داخل الوحدة، والدوال مشتركة بين كل المتاجر: أي مسار يستخدم tamara
+// يجب أن يستدعي initTamaraToken(storeId) أولاً، وأي استخدام مؤقت (اختبار
+// الاتصال) يجب أن ينهي بـ clearApiToken().
 let apiToken = null;
 /**
  * تعيين مفتاح API
  */
 function setApiToken(token) {
     apiToken = token;
+}
+/**
+ * مسح المفتاح من الحالة العامة حتى لا يتسرب إلى نداء متجر آخر.
+ */
+function clearApiToken() {
+    apiToken = null;
 }
 /**
  * الحصول على مفتاح API

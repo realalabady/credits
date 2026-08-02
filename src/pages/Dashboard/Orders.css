@@ -83,7 +83,7 @@
 }
 
 .stat-icon.pending {
-  background: rgba(217, 119, 87, 0.12);
+  background: var(--primary-tint);
   color: var(--primary);
 }
 

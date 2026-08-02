@@ -462,7 +462,7 @@
 }
 
 .status-pending {
-  background: rgba(217, 119, 87, 0.12);
+  background: var(--primary-tint);
   color: var(--primary);
 }
 
@@ -512,7 +512,6 @@
   .stat-value .value {
     font-size: 26px;
   }
-}
 
   .stat-icon {
     margin: 0 auto;

@@ -2,14 +2,24 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // ==================== Multi-tenant ====================
+    // عدة متاجر تتشارك قاعدة Firestore واحدة. كل متجر يملك شجرته الخاصة تحت
+    // stores/{storeId}، ولا توجد مجموعات عليا مشتركة بين المتاجر.
+    //
+    // ملاحظة مهمة: صلاحية الأدمن مخزّنة داخل المتجر
+    // (stores/{storeId}/users/{uid}.role) وليست على مستوى المشروع. لو كانت
+    // عامة لأصبح أدمن أي متجر أدمناً لكل المتاجر — وهي الثغرة التي يغلقها
+    // هذا التقسيم.
+
     // Helper: check if user is authenticated
     function isAuth() {
       return request.auth != null;
     }
 
-    // Helper: check if user is admin
-    function isAdmin() {
-      return isAuth() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    // Helper: is the caller an admin *of this specific store*
+    function isStoreAdmin(storeId) {
+      return isAuth() &&
+        get(/databases/$(database)/documents/stores/$(storeId)/users/$(request.auth.uid)).data.role == 'admin';
     }
 
     // Helper: check if user is the document owner
@@ -17,62 +27,79 @@ service cloud.firestore {
       return isAuth() && request.auth.uid == userId;
     }
 
-    // Products - anyone can read, only admin can write
-    match /products/{productId} {
+    match /stores/{storeId} {
+      // مستند جذر المتجر: { name, domain, active, createdAt }
+      // الواجهة تحتاج قراءته؛ الكتابة عبر Admin SDK فقط (سكربت إنشاء المتجر).
       allow read: if true;
-      allow create, update, delete: if isAdmin();
+      allow write: if false;
+
+      // Products - anyone can read, only this store's admin can write
+      match /products/{productId} {
+        allow read: if true;
+        allow create, update, delete: if isStoreAdmin(storeId);
+      }
+
+      // Categories - anyone can read, only this store's admin can write
+      match /categories/{categoryId} {
+        allow read: if true;
+        allow create, update, delete: if isStoreAdmin(storeId);
+      }
+
+      // Users - users can read/update their own doc (but NOT change role),
+      // this store's admin can do anything. الحساب في Firebase Auth مشترك بين
+      // المتاجر، لكن الملف الشخصي والدور خاصان بكل متجر.
+      match /users/{userId} {
+        allow read: if isOwner(userId) || isStoreAdmin(storeId);
+        allow create: if isAuth() && request.auth.uid == userId
+          && request.resource.data.role == 'customer';
+        allow update: if (isOwner(userId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role'])) || isStoreAdmin(storeId);
+        allow delete: if isStoreAdmin(storeId);
+      }
+
+      // Orders - users can read/create their own, admin can read/update all
+      match /orders/{orderId} {
+        allow read: if isAuth() && (resource.data.userId == request.auth.uid || isStoreAdmin(storeId));
+        allow create: if isAuth()
+          && request.resource.data.userId == request.auth.uid
+          && request.resource.data.total is number
+          && request.resource.data.total >= 0
+          && request.resource.data.items is list;
+        allow update: if isStoreAdmin(storeId);
+        allow delete: if isStoreAdmin(storeId);
+      }
+
+      // Settings
+      // Public config (store info, shipping, notifications, payment method list)
+      // is safe to read by anyone. All other settings docs contain secrets
+      // (payment provider keys, SMTP password, service-account keys) and must
+      // NOT be exposed to the public.
+      //
+      // Note: writes are handled server-side by the Admin SDK (Cloud Functions),
+      // which bypasses these rules. Admin read is kept so the dashboard settings
+      // pages can display saved values.
+      match /settings/store {
+        allow read: if true;
+        allow write: if isStoreAdmin(storeId);
+      }
+      // Any other settings doc (email, tabby, tamara, cjDropshipping,
+      // googleMerchant, ...) is admin-only, and only for this store's admin.
+      match /settings/{settingId} {
+        allow read: if isStoreAdmin(storeId);
+        allow write: if isStoreAdmin(storeId);
+      }
+
+      // Contact Messages - anyone can create, only this store's admin can read
+      match /contactMessages/{messageId} {
+        allow create: if true;
+        allow read, update, delete: if isStoreAdmin(storeId);
+      }
     }
 
-    // Categories - anyone can read, only admin can write
-    match /categories/{categoryId} {
-      allow read: if true;
-      allow create, update, delete: if isAdmin();
-    }
-
-    // Users - users can read/update their own doc (but NOT change role), admin can do anything
-    match /users/{userId} {
-      allow read: if isOwner(userId) || isAdmin();
-      allow create: if isAuth() && request.auth.uid == userId;
-      allow update: if (isOwner(userId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role'])) || isAdmin();
-      allow delete: if isAdmin();
-    }
-
-    // Orders - users can read/create their own, admin can read/update all
-    match /orders/{orderId} {
-      allow read: if isAuth() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow create: if isAuth()
-        && request.resource.data.userId == request.auth.uid
-        && request.resource.data.total is number
-        && request.resource.data.total >= 0
-        && request.resource.data.items is list;
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
-    }
-
-    // Settings
-    // Public config (store info, shipping, notifications, payment method list)
-    // is safe to read by anyone. All other settings docs contain secrets
-    // (payment provider keys, SMTP password, service-account keys) and must
-    // NOT be exposed to the public.
-    //
-    // Note: writes are handled server-side by the Admin SDK (Cloud Functions),
-    // which bypasses these rules. Admin read is kept so the dashboard settings
-    // pages can display saved values.
-    match /settings/store {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-    // Any other settings doc (email, tabby, tamara, cjDropshipping,
-    // googleMerchant, ...) is admin-only.
-    match /settings/{settingId} {
-      allow read: if isAdmin();
-      allow write: if isAdmin();
-    }
-
-    // Contact Messages - anyone can create, only admin can read/update/delete
-    match /contactMessages/{messageId} {
-      allow create: if true;
-      allow read, update, delete: if isAdmin();
+    // Pending payments - مجموعة عليا يكتبها Admin SDK وحده. تبقى خارج شجرة
+    // المتجر لأن مسار webhook مستقبلي لا يملك إلا مرجع الطلب، فيحتاج قراءة
+    // storeId من المستند نفسه. لا قراءة ولا كتابة من أي عميل.
+    match /pending_payments/{paymentId} {
+      allow read, write: if false;
     }
 
     // Deny all other documents by default

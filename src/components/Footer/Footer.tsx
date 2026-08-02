@@ -28,15 +28,15 @@ const Footer: React.FC = () => {
             <div className="feature-item">
               <Truck size={32} />
               <div>
-                <h4>شحن سريع</h4>
-                <p>توصيل لجميع المناطق</p>
+                <h4>توصيل مبرّد</h4>
+                <p>لجميع مناطق المملكة</p>
               </div>
             </div>
             <div className="feature-item">
               <Shield size={32} />
               <div>
-                <h4>ضمان شامل</h4>
-                <p>ضمان على جميع المنتجات</p>
+                <h4>ذبح حلال</h4>
+                <p>بإشراف شرعي معتمد</p>
               </div>
             </div>
             <div className="feature-item">
@@ -49,8 +49,8 @@ const Footer: React.FC = () => {
             <div className="feature-item">
               <Headphones size={32} />
               <div>
-                <h4>دعم 24/7</h4>
-                <p>خدمة عملاء متميزة</p>
+                <h4>دعم يومي</h4>
+                <p>نرد عليك من 8 صباحاً حتى 11 مساءً</p>
               </div>
             </div>
           </div>
@@ -65,8 +65,8 @@ const Footer: React.FC = () => {
             <div className="footer-section">
               <h3 className="footer-title">{storeName}</h3>
               <p className="footer-about">
-                متجرك الأول للتسوق الإلكتروني. نقدم لك أفضل المنتجات بأفضل
-                الأسعار مع ضمان الجودة وخدمة ما بعد البيع.
+                نبيع الأغنام والمواشي مباشرة من المربّين. نختار كل رأس بأنفسنا،
+                ونجهّزه بذبح حلال، ونوصله مبرّداً إلى بابك.
               </p>
               <div className="footer-social">
                 <a href="#" className="social-link">
@@ -109,27 +109,24 @@ const Footer: React.FC = () => {
               </ul>
             </div>
 
-            {/* Categories */}
+            {/* Shop */}
             <div className="footer-section">
-              <h3 className="footer-title">التصنيفات</h3>
+              <h3 className="footer-title">التسوق</h3>
               <ul className="footer-links">
                 <li>
-                  <Link to="/products?category=phones">الجوالات</Link>
+                  <Link to="/products">تصفح المنتجات</Link>
                 </li>
                 <li>
-                  <Link to="/products?category=laptops">اللابتوبات</Link>
+                  <Link to="/products?featured=true">عروض اليوم</Link>
                 </li>
                 <li>
-                  <Link to="/products?category=tvs">التلفزيونات</Link>
+                  <Link to="/cart">سلة المشتريات</Link>
                 </li>
                 <li>
-                  <Link to="/products?category=gaming">الألعاب</Link>
+                  <Link to="/wishlist">المفضلة</Link>
                 </li>
                 <li>
-                  <Link to="/products?category=audio">السماعات</Link>
-                </li>
-                <li>
-                  <Link to="/products?category=accessories">الإكسسوارات</Link>
+                  <Link to="/account">طلباتي</Link>
                 </li>
               </ul>
             </div>

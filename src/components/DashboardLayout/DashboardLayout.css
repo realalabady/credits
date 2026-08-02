@@ -149,7 +149,7 @@
 }
 
 .sidebar-nav .nav-link.active {
-  background: rgba(217, 119, 87, 0.12);
+  background: var(--primary-tint);
   color: var(--primary);
   font-weight: 600;
 }
@@ -476,7 +476,7 @@
 }
 
 .notification-icon.alert {
-  background: rgba(217, 119, 87, 0.14);
+  background: var(--primary-tint);
   color: var(--primary);
 }
 

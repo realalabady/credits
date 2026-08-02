@@ -5,9 +5,12 @@ import {
   deleteObject,
 } from "firebase/storage";
 import { storage } from "../config/firebase";
+import { storagePath } from "../config/store";
 
 /**
- * Upload an image file to Firebase Storage and return the download URL
+ * Upload an image file to Firebase Storage and return the download URL.
+ * Uploads land under stores/{STORE_ID}/ so two storefronts never share a
+ * bucket prefix — `path` stays relative ("products", "categories").
  */
 export const uploadImage = async (
   file: File,
@@ -16,7 +19,7 @@ export const uploadImage = async (
   // Create a unique filename
   const timestamp = Date.now();
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-  const storageRef = ref(storage, `${path}/${timestamp}_${safeName}`);
+  const storageRef = ref(storage, storagePath(`${path}/${timestamp}_${safeName}`));
 
   // Upload the file
   const snapshot = await uploadBytes(storageRef, file, {

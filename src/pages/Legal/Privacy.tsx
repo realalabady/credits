@@ -114,7 +114,7 @@ const Privacy = () => {
         <div className="legal-contact-box">
           <h3>لديك أسئلة حول الخصوصية؟</h3>
           <p>لا تتردد في التواصل معنا</p>
-          <Link to="/contact">تواصل معنا</Link>
+          <Link to="/contact">اتصل بنا</Link>
         </div>
 
         <p className="legal-last-updated">آخر تحديث: يناير 2025</p>

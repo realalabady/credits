@@ -1,369 +1,533 @@
 .home {
-  min-height: 100vh;
   width: 100%;
+  overflow-x: hidden;
 }
 
-/* Hero Section */
+/* ============================================
+   HERO — asymmetric split (text 5fr / image 6fr)
+   ============================================ */
 .hero {
   background: var(--bg);
   border-bottom: 1px solid var(--line);
-  padding: 80px 0;
-  overflow: hidden;
-  width: 100%;
+  padding: 72px 0 80px;
 }
 
 .hero-content {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 40px;
+  grid-template-columns: 5fr 6fr;
+  gap: clamp(32px, 5vw, 72px);
   align-items: center;
 }
 
-.hero-text {
-  color: var(--ink);
-}
-
-.hero-badge {
+.hero-eyebrow {
   display: inline-block;
-  background: rgba(217, 119, 87, 0.12);
   color: var(--primary);
-  padding: 8px 20px;
-  border-radius: 20px;
-  font-size: 14px;
-  font-weight: 600;
-  margin-bottom: 20px;
+  background: var(--primary-tint);
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  margin-bottom: 22px;
 }
 
 .hero-text h1 {
-  font-size: 48px;
+  font-size: clamp(2.25rem, 4.6vw, 3.75rem);
   font-weight: 800;
-  line-height: 1.2;
+  line-height: 1.18;
+  letter-spacing: -0.015em;
   margin-bottom: 20px;
+  max-width: 15ch;
 }
 
 .hero-text p {
-  font-size: 18px;
+  font-size: 17px;
   color: var(--ink-soft);
-  margin-bottom: 30px;
   line-height: 1.8;
+  max-width: 46ch;
+  margin-bottom: 32px;
 }
 
 .hero-buttons {
   display: flex;
-  gap: 15px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.hero-buttons .btn {
+  white-space: nowrap;
 }
 
 .hero-image {
   position: relative;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-lg);
+  aspect-ratio: 6 / 5;
+  background: var(--bg-subtle);
 }
 
 .hero-image img {
   width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* ============================================
+   ASSURANCES — hairline row, deliberately card-free
+   ============================================ */
+.assurances {
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  padding: 56px 0;
+}
+
+.assurance-row {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0;
+}
+
+.assurance {
+  padding: 0 28px;
+  border-inline-start: 1px solid var(--line);
+}
+
+.assurance:first-child {
+  border-inline-start: none;
+  padding-inline-start: 0;
+}
+
+.assurance:last-child {
+  padding-inline-end: 0;
+}
+
+.assurance svg {
+  color: var(--primary);
+  margin-bottom: 14px;
+}
+
+.assurance h3 {
+  font-size: 15px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.assurance p {
+  font-size: 14px;
+  color: var(--ink-soft);
+  line-height: 1.7;
+}
+
+/* ============================================
+   FEATURED — bento, auto-fit so a track never sits empty
+   ============================================ */
+.featured-section {
+  padding: 88px 0;
+}
+
+.featured-bento {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 22px;
+  align-items: stretch;
+}
+
+.featured-bento > * {
+  min-width: 0;
+}
+
+.bento-tile {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 14px;
+  padding: 34px 30px;
   border-radius: var(--radius-lg);
+  background: var(--primary);
+  color: var(--on-primary);
+}
+
+.bento-tile h2 {
+  color: inherit;
+  font-size: clamp(1.5rem, 2.4vw, 2rem);
+  line-height: 1.25;
+}
+
+.bento-tile p {
+  font-size: 15px;
+  line-height: 1.8;
+  opacity: 0.88;
+}
+
+.tile-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+  font-size: 15px;
+  color: inherit;
+  border-bottom: 1px solid currentColor;
+  align-self: flex-start;
+  padding-bottom: 2px;
+  transition: gap 150ms ease;
+}
+
+.tile-link:hover {
+  gap: 12px;
+}
+
+/* ============================================
+   PASTURE BAND — full-bleed photograph, one line of copy
+   ============================================ */
+.pasture-band {
+  position: relative;
+  isolation: isolate;
+  background-size: cover;
+  background-position: center;
+  padding: clamp(96px, 16vw, 180px) 0;
+}
+
+.pasture-band::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(
+    to top,
+    rgba(20, 26, 14, 0.78),
+    rgba(20, 26, 14, 0.42)
+  );
+}
+
+.pasture-band p {
+  color: #fff;
+  font-size: clamp(1.35rem, 3vw, 2.25rem);
+  font-weight: 700;
+  line-height: 1.5;
+  max-width: 22ch;
+  text-shadow: 0 1px 24px rgba(20, 26, 14, 0.5);
+}
+
+/* ============================================
+   PROCESS — tinted surface, numbers stay out of it
+   ============================================ */
+.process {
+  background: var(--bg-subtle);
+  padding: 88px 0;
+}
+
+.process > .container > h2 {
+  font-size: clamp(1.6rem, 3vw, 2.25rem);
+  margin-bottom: 40px;
+  max-width: 18ch;
+}
+
+.process-steps {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 28px;
+}
+
+.process-steps li {
+  padding-top: 22px;
+  border-top: 2px solid var(--primary);
+}
+
+.process-steps h3 {
+  font-size: 20px;
+  margin-bottom: 8px;
+}
+
+.process-steps p {
+  color: var(--ink-soft);
+  font-size: 15px;
+  line-height: 1.8;
+  max-width: 34ch;
+}
+
+/* ============================================
+   STORY — the single image + text split on this page
+   ============================================ */
+.story {
+  padding: 88px 0;
+}
+
+.story-content {
+  display: grid;
+  grid-template-columns: 5fr 7fr;
+  gap: clamp(28px, 5vw, 64px);
+  align-items: center;
+}
+
+.story-media {
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  aspect-ratio: 4 / 5;
+  background: var(--bg-subtle);
   box-shadow: var(--shadow-md);
 }
 
-/* Section Header */
+.story-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.story-text h2 {
+  font-size: clamp(1.6rem, 3vw, 2.375rem);
+  line-height: 1.25;
+  margin-bottom: 20px;
+  max-width: 16ch;
+}
+
+.story-text p {
+  color: var(--ink-soft);
+  font-size: 16px;
+  line-height: 1.9;
+  max-width: 56ch;
+  margin-bottom: 16px;
+}
+
+.story-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--primary);
+  font-weight: 700;
+  margin-top: 8px;
+  transition: gap 150ms ease;
+}
+
+.story-link:hover {
+  gap: 12px;
+}
+
+/* ============================================
+   PRODUCTS GRID
+   ============================================ */
+.products-section {
+  padding: 0 0 88px;
+}
+
 .section-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 30px;
+  align-items: baseline;
+  gap: 16px;
+  margin-bottom: 28px;
 }
 
 .section-header h2 {
-  font-size: 28px;
-  font-weight: 700;
-  color: var(--ink);
-  position: relative;
-  padding-bottom: 10px;
-}
-
-.section-header h2::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  right: 0;
-  width: 44px;
-  height: 3px;
-  border-radius: 2px;
-  background: var(--primary);
+  font-size: clamp(1.4rem, 2.6vw, 2rem);
 }
 
 .view-all {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 5px;
   color: var(--primary);
-  font-weight: 600;
-  transition: gap 0.3s ease;
+  font-weight: 700;
+  font-size: 15px;
+  white-space: nowrap;
+  transition: gap 150ms ease;
 }
 
 .view-all:hover {
-  gap: 10px;
-}
-
-/* Categories Section */
-.categories-section {
-  padding: 72px 0;
-  background: var(--surface);
-}
-
-.categories-grid {
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: 20px;
-}
-
-.category-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 15px;
-  padding: 30px 20px;
-  background: var(--bg);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
-  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
-}
-
-.category-card:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-md);
-  border-color: var(--mid);
-}
-
-.category-icon {
-  width: 70px;
-  height: 70px;
-  border-radius: 50%;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--cat-color);
-  transition: all 0.15s ease;
-}
-
-.category-card:hover .category-icon {
-  border-color: var(--cat-color);
-}
-
-.category-card span {
-  font-weight: 600;
-  font-size: 15px;
-}
-
-/* Products Section */
-.products-section {
-  padding: 72px 0;
+  gap: 11px;
 }
 
 .products-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 25px;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 22px;
 }
 
-/* Promo Banner */
-.promo-banner {
-  padding: 72px 0;
+/* ============================================
+   CLOSING CTA
+   ============================================ */
+.closing-cta {
+  padding: 0 0 88px;
+}
+
+.cta-inner {
   background: var(--primary);
+  color: var(--on-primary);
+  border-radius: var(--radius-lg);
+  padding: clamp(44px, 7vw, 76px) clamp(24px, 5vw, 64px);
+  text-align: center;
 }
 
-.banner-content {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 40px;
+.cta-inner h2 {
+  color: inherit;
+  font-size: clamp(1.6rem, 3.2vw, 2.5rem);
+  margin-bottom: 12px;
+}
+
+.cta-inner p {
+  font-size: 17px;
+  opacity: 0.9;
+  margin-bottom: 30px;
+}
+
+.cta-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  justify-content: center;
   align-items: center;
 }
 
-.banner-text {
-  color: white;
-}
-
-.banner-text span {
-  display: inline-block;
-  background: rgba(255, 255, 255, 0.2);
-  padding: 8px 20px;
-  border-radius: 20px;
-  font-size: 14px;
-  font-weight: 600;
-  margin-bottom: 15px;
-}
-
-.banner-text h2 {
-  font-size: 42px;
-  font-weight: 800;
-  margin-bottom: 15px;
-}
-
-.banner-text p {
-  font-size: 18px;
-  opacity: 0.9;
-  margin-bottom: 25px;
-}
-
-.banner-text .btn-secondary {
-  background: #fff;
+/* On the olive fill the primary CTA inverts: ink surface, olive label */
+.cta-primary {
+  background: var(--on-primary);
   color: var(--primary);
-  border-color: #fff;
+  white-space: nowrap;
 }
 
-.banner-text .btn-secondary:hover {
+.cta-primary:hover {
   background: var(--ink);
   color: #fff;
-  border-color: var(--ink);
 }
 
-.banner-image img {
-  width: 100%;
-  border-radius: 20px;
+.cta-secondary {
+  color: inherit;
+  font-weight: 700;
+  border-bottom: 1px solid currentColor;
+  padding-bottom: 2px;
+  white-space: nowrap;
 }
 
-/* Responsive */
-@media (max-width: 1200px) {
-  .products-grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
-  
-  .categories-grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
-
-@media (max-width: 992px) {
-  .hero-content {
-    grid-template-columns: 1fr;
-    text-align: center;
-  }
-
-  .hero-text h1 {
-    font-size: 36px;
-  }
-
-  .hero-buttons {
-    justify-content: center;
-  }
-
-  .hero-image {
-    order: -1;
-    max-width: 400px;
-    margin: 0 auto;
-  }
-
-  .banner-content {
-    grid-template-columns: 1fr;
-    text-align: center;
-  }
-
-  .banner-image {
-    order: -1;
-    max-width: 400px;
-    margin: 0 auto;
-  }
-
-  .products-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (max-width: 576px) {
-  .hero {
-    padding: 40px 0;
-  }
-
-  .hero-badge {
-    font-size: 12px;
-    padding: 6px 14px;
-  }
-
-  .hero-text h1 {
-    font-size: 26px;
-  }
-
-  .hero-text p {
-    font-size: 14px;
-    margin-bottom: 20px;
-  }
-
-  .hero-buttons {
-    flex-direction: column;
-  }
-
-  .hero-buttons .btn {
-    width: 100%;
-    justify-content: center;
-  }
-
-  .categories-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
-  }
-
-  .category-card {
-    padding: 16px 12px;
-  }
-
-  .category-icon {
-    width: 50px;
-    height: 50px;
-    font-size: 22px;
-  }
-
-  .category-name {
-    font-size: 13px;
-  }
-
-  .products-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
-  }
-
-  .section-header {
-    margin-bottom: 16px;
-  }
-
-  .section-header h2 {
-    font-size: 20px;
-  }
-
-  .view-all {
-    font-size: 13px;
-  }
-
-  .banner-text h2 {
-    font-size: 24px;
-  }
-
-  .banner-text p {
-    font-size: 14px;
-  }
-}
-
-/* Empty Products State */
+/* ============================================
+   EMPTY STATE
+   ============================================ */
 .empty-products {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 60px 20px;
+  padding: 64px 20px;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
-  color: var(--gray);
+  color: var(--ink-soft);
   text-align: center;
-  gap: 10px;
+  gap: 8px;
+}
+
+.empty-products svg {
+  color: var(--mid);
+  margin-bottom: 6px;
 }
 
 .empty-products p {
-  font-weight: 600;
+  font-weight: 700;
   font-size: 18px;
-  margin: 0;
-  color: var(--dark);
+  color: var(--ink);
 }
 
 .empty-products span {
   font-size: 14px;
+}
+
+/* ============================================
+   RESPONSIVE — every multi-column block collapses explicitly
+   ============================================ */
+@media (max-width: 992px) {
+  .hero {
+    padding: 48px 0 56px;
+  }
+
+  .hero-content,
+  .story-content {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-image {
+    order: -1;
+    aspect-ratio: 16 / 10;
+  }
+
+  .story-media {
+    aspect-ratio: 16 / 10;
+  }
+
+  .assurance-row {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 28px 0;
+  }
+
+  .assurance {
+    padding: 0 20px;
+  }
+
+  .assurance:nth-child(odd) {
+    border-inline-start: none;
+    padding-inline-start: 0;
+  }
+
+  .process-steps {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  .featured-section,
+  .process,
+  .story {
+    padding: 56px 0;
+  }
+
+  .products-section,
+  .closing-cta {
+    padding: 0 0 56px;
+  }
+}
+
+@media (max-width: 576px) {
+  .hero-text p {
+    font-size: 15px;
+    margin-bottom: 24px;
+  }
+
+  .hero-buttons {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .hero-buttons .btn {
+    width: 100%;
+  }
+
+  .assurance-row {
+    grid-template-columns: 1fr;
+  }
+
+  .assurance {
+    border-inline-start: none;
+    padding: 0;
+  }
+
+  .products-grid,
+  .featured-bento {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 12px;
+  }
+
+  .bento-tile {
+    grid-column: 1 / -1;
+    padding: 28px 22px;
+  }
+
+  .cta-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .cta-primary {
+    width: 100%;
+  }
 }

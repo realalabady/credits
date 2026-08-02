@@ -18,7 +18,6 @@ const Cart: React.FC = () => {
     updateQuantity,
     getCartTotal,
     clearCart,
-    categories,
   } = useStore();
   const [shippingSettings, setShippingSettings] = useState<ShippingSettings>({
     freeShippingThreshold: 200,
@@ -101,10 +100,9 @@ const Cart: React.FC = () => {
                   >
                     {item.product.name}
                   </Link>
-                  <span className="item-category">
-                    {categories.find((c) => c.id === item.product.category)
-                      ?.name || item.product.category}
-                  </span>
+                  {item.product.brand && (
+                    <span className="item-brand">{item.product.brand}</span>
+                  )}
                   {/* عرض المتغيرات المختارة */}
                   {item.selectedVariants && Object.keys(item.selectedVariants).length > 0 && (
                     <div className="item-variants">

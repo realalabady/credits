@@ -43,18 +43,23 @@ const formatPrice = (price: number): string =>
     maximumFractionDigits: 2,
   }).format(price)} ر.س`;
 
-const getStoreName = async (): Promise<string> => {
+/** اسم المتجر وبريد صاحبه، من stores/{storeId}/settings/store. */
+const getStoreContact = async (
+  storeId: string,
+): Promise<{ storeName: string; ownerEmail: string }> => {
   try {
     const storeDoc = await admin
       .firestore()
-      .collection("settings")
-      .doc("store")
+      .doc(`stores/${storeId}/settings/store`)
       .get();
     const data = storeDoc.data() || {};
     const store = data.store || data;
-    return store.storeName || "متجرنا";
+    return {
+      storeName: store.storeName || "متجرنا",
+      ownerEmail: typeof store.storeEmail === "string" ? store.storeEmail.trim() : "",
+    };
   } catch {
-    return "متجرنا";
+    return { storeName: "متجرنا", ownerEmail: "" };
   }
 };
 
@@ -133,22 +138,33 @@ const buildTemplate = (
 };
 
 export const sendOwnerEmkanNotification = async (
+  storeId: string,
   order: OwnerNotificationOrder
 ): Promise<SendResult> => {
   const apiKey = process.env.RESEND_API_KEY;
-  const ownerEmail = process.env.OWNER_EMAIL;
   const fromEmail = process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev";
 
-  if (!apiKey || !ownerEmail) {
+  if (!apiKey) {
     console.log(
-      "Resend not configured (RESEND_API_KEY/OWNER_EMAIL missing) - skipping owner notification"
+      "Resend not configured (RESEND_API_KEY missing) - skipping owner notification"
+    );
+    return { success: false, skipped: true };
+  }
+
+  // المستلم يخص المتجر نفسه؛ OWNER_EMAIL على مستوى المشروع احتياطي فقط،
+  // فهو لا يصلح عندما تتشارك عدة متاجر نفس نشر الدوال.
+  const { storeName, ownerEmail: storeOwnerEmail } = await getStoreContact(storeId);
+  const ownerEmail = storeOwnerEmail || process.env.OWNER_EMAIL;
+
+  if (!ownerEmail) {
+    console.log(
+      `No owner email for store ${storeId} (settings/store.storeEmail or OWNER_EMAIL) - skipping`
     );
     return { success: false, skipped: true };
   }
 
   try {
     const resend = new Resend(apiKey);
-    const storeName = await getStoreName();
 
     const { error } = await resend.emails.send({
       from: `${storeName} <${fromEmail}>`,

@@ -1,39 +1,37 @@
 import React, { useState } from "react";
 import { useSearchParams, Link } from "react-router-dom";
-import { Filter, ChevronDown, Grid, List } from "lucide-react";
+import { ChevronDown, Grid, List } from "lucide-react";
 import ProductCard from "../../components/ProductCard/ProductCard";
 import { useStore } from "../../store/useStore";
 import "./Products.css";
 
 const Products: React.FC = () => {
   const [searchParams] = useSearchParams();
-  const { products, categories, searchQuery } = useStore();
+  const { products, searchQuery } = useStore();
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [sortBy, setSortBy] = useState("newest");
-  const [showFilters, setShowFilters] = useState(false);
+  const [inStockOnly, setInStockOnly] = useState(false);
+  const [onSaleOnly, setOnSaleOnly] = useState(false);
 
-  const categoryParam = searchParams.get("category");
   const featuredParam = searchParams.get("featured");
   const searchParam = searchParams.get("search");
 
-  // فلترة المنتجات
   let filteredProducts = [...products];
 
-  // فلتر حسب التصنيف
-  if (categoryParam) {
-    filteredProducts = filteredProducts.filter(
-      (p) =>
-        p.category === categoryParam ||
-        p.category.toLowerCase() === categoryParam.toLowerCase(),
-    );
-  }
-
-  // فلتر المنتجات المميزة
   if (featuredParam === "true") {
     filteredProducts = filteredProducts.filter((p) => p.featured);
   }
 
-  // فلتر البحث
+  if (inStockOnly) {
+    filteredProducts = filteredProducts.filter((p) => p.stock > 0);
+  }
+
+  if (onSaleOnly) {
+    filteredProducts = filteredProducts.filter(
+      (p) => typeof p.oldPrice === "number" && p.oldPrice > p.price,
+    );
+  }
+
   const activeSearch = searchParam || searchQuery;
   if (activeSearch) {
     filteredProducts = filteredProducts.filter(
@@ -44,7 +42,6 @@ const Products: React.FC = () => {
     );
   }
 
-  // الترتيب
   switch (sortBy) {
     case "price-low":
       filteredProducts.sort((a, b) => a.price - b.price);
@@ -65,17 +62,11 @@ const Products: React.FC = () => {
 
   const getPageTitle = () => {
     if (featuredParam === "true") return "عروض اليوم";
-    if (categoryParam) {
-      const cat = categories.find(
-        (c) =>
-          c.id === categoryParam ||
-          c.nameEn.toLowerCase() === categoryParam.toLowerCase(),
-      );
-      return cat?.name || categoryParam;
-    }
     if (activeSearch) return `نتائج البحث: ${activeSearch}`;
     return "جميع المنتجات";
   };
+
+  const filtersActive = inStockOnly || onSaleOnly;
 
   return (
     <div className="products-page">
@@ -88,19 +79,42 @@ const Products: React.FC = () => {
 
         {/* Toolbar */}
         <div className="products-toolbar">
-          <button
-            className="filter-toggle"
-            onClick={() => setShowFilters(!showFilters)}
-          >
-            <Filter size={18} />
-            الفلاتر
-          </button>
+          <div className="filter-chips">
+            <button
+              type="button"
+              className={`filter-chip ${inStockOnly ? "active" : ""}`}
+              aria-pressed={inStockOnly}
+              onClick={() => setInStockOnly((v) => !v)}
+            >
+              المتوفر فقط
+            </button>
+            <button
+              type="button"
+              className={`filter-chip ${onSaleOnly ? "active" : ""}`}
+              aria-pressed={onSaleOnly}
+              onClick={() => setOnSaleOnly((v) => !v)}
+            >
+              عليه خصم
+            </button>
+            {filtersActive && (
+              <button
+                type="button"
+                className="filter-reset"
+                onClick={() => {
+                  setInStockOnly(false);
+                  setOnSaleOnly(false);
+                }}
+              >
+                إعادة تعيين
+              </button>
+            )}
+          </div>
 
           <div className="toolbar-right">
-            {/* Sort */}
             <div className="sort-select">
               <select
                 value={sortBy}
+                aria-label="ترتيب المنتجات"
                 onChange={(e) => setSortBy(e.target.value)}
               >
                 <option value="newest">الأحدث</option>
@@ -108,50 +122,29 @@ const Products: React.FC = () => {
                 <option value="price-high">السعر: من الأعلى للأقل</option>
                 <option value="name">الاسم</option>
               </select>
-              <ChevronDown size={16} />
+              <ChevronDown size={16} aria-hidden="true" />
             </div>
 
-            {/* View Mode */}
             <div className="view-modes">
               <button
                 className={viewMode === "grid" ? "active" : ""}
+                aria-label="عرض شبكي"
+                aria-pressed={viewMode === "grid"}
                 onClick={() => setViewMode("grid")}
               >
-                <Grid size={18} />
+                <Grid size={18} aria-hidden="true" />
               </button>
               <button
                 className={viewMode === "list" ? "active" : ""}
+                aria-label="عرض قائمة"
+                aria-pressed={viewMode === "list"}
                 onClick={() => setViewMode("list")}
               >
-                <List size={18} />
+                <List size={18} aria-hidden="true" />
               </button>
             </div>
           </div>
         </div>
-
-        {/* Filters Sidebar */}
-        {showFilters && (
-          <div className="filters-sidebar">
-            <h3>التصنيفات</h3>
-            <ul className="category-list">
-              <li>
-                <Link to="/products" className={!categoryParam ? "active" : ""}>
-                  جميع المنتجات
-                </Link>
-              </li>
-              {categories.map((cat) => (
-                <li key={cat.id}>
-                  <Link
-                    to={`/products?category=${cat.id}`}
-                    className={categoryParam === cat.id ? "active" : ""}
-                  >
-                    {cat.name}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
 
         {/* Products Grid */}
         {filteredProducts.length > 0 ? (
@@ -162,10 +155,21 @@ const Products: React.FC = () => {
           </div>
         ) : (
           <div className="no-products">
-            <p>لا توجد منتجات</p>
-            {categoryParam && (
+            <p>لا توجد منتجات مطابقة</p>
+            {filtersActive ? (
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => {
+                  setInStockOnly(false);
+                  setOnSaleOnly(false);
+                }}
+              >
+                إزالة الفلاتر
+              </button>
+            ) : (
               <Link to="/products" className="btn btn-primary">
-                عرض جميع المنتجات
+                تصفح المنتجات
               </Link>
             )}
           </div>

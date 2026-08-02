@@ -1,7 +1,8 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Shield, Truck, Headphones, Award, Users, Globe } from "lucide-react";
+import { Shield, Truck, Headphones, Scale, Sprout, ScrollText } from "lucide-react";
 import { useStore } from "../../store/useStore";
+import { MEDIA } from "../../constants/media";
 import "./About.css";
 
 const About: React.FC = () => {
@@ -13,27 +14,37 @@ const About: React.FC = () => {
       <section className="about-hero">
         <div className="container">
           <h1>من نحن</h1>
-          <p>
-            {storeName} - وجهتك الأولى للتسوق الإلكتروني
-          </p>
+          <p>{storeName} - أغنام من المربّي إلى بابك</p>
         </div>
       </section>
 
       {/* Story Section */}
       <section className="about-story">
         <div className="container">
-          <div className="story-content">
-            <h2>قصتنا</h2>
-            <p>
-              تأسس {storeName} بهدف توفير أحدث المنتجات بأفضل الأسعار وأعلى
-              جودة. نسعى دائماً لتقديم تجربة تسوق مميزة لعملائنا من خلال توفير
-              منتجات أصلية ومضمونة مع خدمة عملاء استثنائية.
-            </p>
-            <p>
-              نعمل مع أفضل الموردين والعلامات التجارية العالمية لنضمن حصولك على
-              أحدث التقنيات بأسعار تنافسية. من الهواتف الذكية إلى الأجهزة
-              المنزلية، نوفر كل ما تحتاجه تحت سقف واحد.
-            </p>
+          <div className="story-layout">
+            <div className="story-content">
+              <h2>قصتنا</h2>
+              <p>
+                بدأ {storeName} من علاقة طويلة مع المربّين في المنطقة. كنا نشتري
+                لأهلنا ومعارفنا، ثم صار الطلب أكبر من أن يُدار بالهاتف، فبنينا
+                هذا المتجر.
+              </p>
+              <p>
+                نعاين القطيع بأنفسنا في المرعى، ونختار الرؤوس السليمة فقط، ثم
+                نذبحها على الطريقة الشرعية في مسلخ معتمد، ونوصلها مبرّدة إلى
+                بابك. لا وسطاء بيننا وبين المزرعة، ولذلك يبقى السعر قريباً من
+                سعر السوق.
+              </p>
+            </div>
+            <div className="story-photo">
+              <img
+                src={MEDIA.farm}
+                alt="مزرعة أغنام"
+                loading="lazy"
+                width={900}
+                height={700}
+              />
+            </div>
           </div>
         </div>
       </section>
@@ -45,45 +56,45 @@ const About: React.FC = () => {
           <div className="features-grid">
             <div className="feature-card">
               <div className="feature-icon">
-                <Shield size={32} />
+                <ScrollText size={32} aria-hidden="true" />
               </div>
-              <h3>منتجات أصلية</h3>
-              <p>جميع منتجاتنا أصلية ومضمونة مع كفالة رسمية</p>
+              <h3>ذبح حلال</h3>
+              <p>كل رأس يُذبح بإشراف شرعي في مسلخ معتمد</p>
             </div>
             <div className="feature-card">
               <div className="feature-icon">
-                <Truck size={32} />
+                <Sprout size={32} aria-hidden="true" />
               </div>
-              <h3>توصيل سريع</h3>
-              <p>نوفر خدمة توصيل سريعة لجميع مناطق المملكة</p>
+              <h3>من المربّي مباشرة</h3>
+              <p>نشتري من المزرعة دون وسطاء، ونعاين القطيع بأنفسنا</p>
             </div>
             <div className="feature-card">
               <div className="feature-icon">
-                <Headphones size={32} />
+                <Scale size={32} aria-hidden="true" />
               </div>
-              <h3>دعم فني 24/7</h3>
-              <p>فريق دعم فني متخصص متاح على مدار الساعة</p>
+              <h3>وزن معتمد</h3>
+              <p>تدفع على الوزن الصافي بعد التنظيف، ويصلك كشف الوزن</p>
             </div>
             <div className="feature-card">
               <div className="feature-icon">
-                <Award size={32} />
+                <Truck size={32} aria-hidden="true" />
               </div>
-              <h3>أفضل الأسعار</h3>
-              <p>أسعار تنافسية مع عروض وخصومات مستمرة</p>
+              <h3>توصيل مبرّد</h3>
+              <p>سلسلة تبريد كاملة من المسلخ حتى باب بيتك</p>
             </div>
             <div className="feature-card">
               <div className="feature-icon">
-                <Users size={32} />
+                <Shield size={32} aria-hidden="true" />
               </div>
-              <h3>آلاف العملاء</h3>
-              <p>ثقة أكثر من 10,000 عميل في جميع أنحاء المملكة</p>
+              <h3>فحص بيطري</h3>
+              <p>لا نبيع إلا الرؤوس السليمة، ونستبعد ما دون ذلك</p>
             </div>
             <div className="feature-card">
               <div className="feature-icon">
-                <Globe size={32} />
+                <Headphones size={32} aria-hidden="true" />
               </div>
-              <h3>ماركات عالمية</h3>
-              <p>نوفر أشهر العلامات التجارية العالمية</p>
+              <h3>دعم يومي</h3>
+              <p>نرد على استفساراتك من 8 صباحاً حتى 11 مساءً</p>
             </div>
           </div>
         </div>
@@ -92,14 +103,14 @@ const About: React.FC = () => {
       {/* CTA Section */}
       <section className="about-cta">
         <div className="container">
-          <h2>ابدأ التسوق الآن</h2>
-          <p>اكتشف مجموعتنا الواسعة من المنتجات الإلكترونية</p>
+          <h2>جاهز تحجز رأسك؟</h2>
+          <p>اطّلع على المعروض اليوم واختر ما يناسب مناسبتك</p>
           <div className="cta-buttons">
             <Link to="/products" className="btn btn-primary btn-lg">
               تصفح المنتجات
             </Link>
             <Link to="/contact" className="btn btn-outline btn-lg">
-              تواصل معنا
+              اتصل بنا
             </Link>
           </div>
         </div>

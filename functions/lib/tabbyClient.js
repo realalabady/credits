@@ -5,11 +5,15 @@
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.setApiKeys = setApiKeys;
+exports.clearApiKeys = clearApiKeys;
 exports.createCheckoutSession = createCheckoutSession;
 exports.capturePayment = capturePayment;
 exports.getPaymentStatus = getPaymentStatus;
 exports.refundPayment = refundPayment;
-// مفاتيح Tabby API
+// مفاتيح Tabby API - تُقرأ من stores/{storeId}/settings/tabby قبل كل نداء.
+// حالة عامة داخل الوحدة، والدوال مشتركة بين كل المتاجر: أي مسار يستخدم tabby
+// يجب أن يستدعي initTabbyKeys(storeId) أولاً، وأي استخدام مؤقت (اختبار
+// الاتصال) يجب أن ينهي بـ clearApiKeys().
 let publicKey = "";
 let secretKey = "";
 const TABBY_API_URL = "https://api.tabby.ai/api/v2";
@@ -19,6 +23,13 @@ const TABBY_API_URL = "https://api.tabby.ai/api/v2";
 function setApiKeys(pubKey, secKey) {
     publicKey = pubKey;
     secretKey = secKey;
+}
+/**
+ * مسح المفاتيح من الحالة العامة حتى لا تتسرب إلى نداء متجر آخر.
+ */
+function clearApiKeys() {
+    publicKey = "";
+    secretKey = "";
 }
 async function createCheckoutSession(params) {
     var _a;

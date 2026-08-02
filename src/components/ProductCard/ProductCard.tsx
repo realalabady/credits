@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { ShoppingCart, Heart, Eye, Star } from "lucide-react";
 import type { Product } from "../../types";
 import { useStore } from "../../store/useStore";
+import { PRODUCT_PLACEHOLDER } from "../../constants/media";
 import "./ProductCard.css";
 
 interface ProductCardProps {
@@ -10,11 +11,8 @@ interface ProductCardProps {
 }
 
 const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
-  const { addToCart, toggleWishlist, isInWishlist, categories } = useStore();
+  const { addToCart, toggleWishlist, isInWishlist } = useStore();
   const wishlisted = isInWishlist(product.id);
-
-  const categoryName =
-    categories.find((c) => c.id === product.category)?.name || product.category;
 
   const discount = product.oldPrice
     ? Math.round(((product.oldPrice - product.price) / product.oldPrice) * 100)
@@ -41,7 +39,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
       {/* Image */}
       <Link to={`/product/${product.id}`} className="product-image">
         <img
-          src={product.images[0] || "/placeholder.jpg"}
+          src={product.images[0] || PRODUCT_PLACEHOLDER}
           alt={product.name}
           loading="lazy"
           width="300"
@@ -75,25 +73,29 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
 
       {/* Content */}
       <div className="product-content">
-        <span className="product-category">{categoryName}</span>
+        {product.brand && (
+          <span className="product-brand">{product.brand}</span>
+        )}
 
         <Link to={`/product/${product.id}`}>
           <h3 className="product-title">{product.name}</h3>
         </Link>
 
-        {/* Rating */}
-        <div className="product-rating">
-          {[...Array(5)].map((_, i) => (
-            <Star
-              key={i}
-              size={14}
-              aria-hidden="true"
-              fill={i < 4 ? "#fbbf24" : "none"}
-              color="#fbbf24"
-            />
-          ))}
-          <span>(120)</span>
-        </div>
+        {/* Rating — only when the product actually carries one */}
+        {typeof product.rating === "number" && product.rating > 0 && (
+          <div className="product-rating">
+            {[...Array(5)].map((_, i) => (
+              <Star
+                key={i}
+                size={14}
+                aria-hidden="true"
+                fill={i < Math.round(product.rating!) ? "#c08a2e" : "none"}
+                color="#c08a2e"
+              />
+            ))}
+            {product.reviewCount ? <span>({product.reviewCount})</span> : null}
+          </div>
+        )}
 
         {/* Price */}
         <div className="product-pricing">

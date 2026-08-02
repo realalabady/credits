@@ -32,8 +32,6 @@ export interface Product {
   description: string;
   price: number;
   oldPrice?: number;
-  category: string;
-  subcategory?: string;
   images: string[];
   stock: number;
   featured: boolean;
@@ -51,24 +49,6 @@ export interface Product {
   rating?: number;
   reviewCount?: number;
   features?: string[];
-}
-
-export interface Category {
-  id: string;
-  name: string;
-  nameEn: string;
-  icon: string;
-  image?: string;
-  subcategories?: Subcategory[];
-  order: number;
-  createdAt?: Date;
-  updatedAt?: Date;
-}
-
-export interface Subcategory {
-  id: string;
-  name: string;
-  nameEn: string;
 }
 
 export interface Order {

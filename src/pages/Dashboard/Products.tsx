@@ -26,9 +26,8 @@ import type { Product, ProductVariantType, ProductVariant } from "../../types";
 import "./Products.css";
 
 const Products: React.FC = () => {
-  const { products, categories } = useStore();
+  const { products } = useStore();
   const [searchQuery, setSearchQuery] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("");
   const [stockFilter, setStockFilter] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -39,7 +38,6 @@ const Products: React.FC = () => {
     description: "",
     price: "",
     oldPrice: "",
-    category: "",
     stock: "",
     featured: false,
     images: [] as string[],
@@ -66,12 +64,11 @@ const Products: React.FC = () => {
     const matchesSearch =
       p.name.includes(searchQuery) ||
       p.nameEn.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = !categoryFilter || p.category === categoryFilter;
     const matchesStock =
       !stockFilter ||
       (stockFilter === "in-stock" && p.stock > 0) ||
       (stockFilter === "out-of-stock" && p.stock === 0);
-    return matchesSearch && matchesCategory && matchesStock;
+    return matchesSearch && matchesStock;
   });
 
   const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
@@ -89,7 +86,6 @@ const Products: React.FC = () => {
         description: product.description,
         price: product.price.toString(),
         oldPrice: product.oldPrice?.toString() || "",
-        category: product.category,
         stock: product.stock.toString(),
         featured: product.featured,
         images: product.images,
@@ -112,7 +108,6 @@ const Products: React.FC = () => {
         description: "",
         price: "",
         oldPrice: "",
-        category: "",
         stock: "",
         featured: false,
         images: [],
@@ -247,7 +242,6 @@ const Products: React.FC = () => {
         nameEn: formData.nameEn.trim(),
         description: formData.description.trim(),
         price: price,
-        category: formData.category || "",
         images: allImages.length
           ? allImages
           : ["data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Crect width='120' height='120' fill='%23ece9e3'/%3E%3Cpath d='M28 82l22-28 15 17 11-13 16 24z' fill='%23c9c6bd'/%3E%3Ccircle cx='44' cy='42' r='9' fill='%23c9c6bd'/%3E%3C/svg%3E"],
@@ -322,7 +316,6 @@ const Products: React.FC = () => {
       "الاسم بالإنجليزي",
       "السعر",
       "السعر القديم",
-      "التصنيف",
       "المخزون",
       "مميز",
       "الوصف",
@@ -332,7 +325,6 @@ const Products: React.FC = () => {
       p.nameEn,
       p.price,
       p.oldPrice || "",
-      categories.find((c) => c.id === p.category)?.name || p.category,
       p.stock,
       p.featured ? "نعم" : "لا",
       p.description?.replace(/,/g, "،") || "",
@@ -368,7 +360,6 @@ const Products: React.FC = () => {
           description: item.description || "",
           price: Number(item.price),
           oldPrice: item.oldPrice ? Number(item.oldPrice) : undefined,
-          category: item.category || "",
           images: item.images || ["data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Crect width='120' height='120' fill='%23ece9e3'/%3E%3Cpath d='M28 82l22-28 15 17 11-13 16 24z' fill='%23c9c6bd'/%3E%3Ccircle cx='44' cy='42' r='9' fill='%23c9c6bd'/%3E%3C/svg%3E"],
           stock: Number(item.stock) || 0,
           featured: Boolean(item.featured),
@@ -471,21 +462,6 @@ const Products: React.FC = () => {
         <div className="filter-buttons">
           <select
             className="filter-select"
-            value={categoryFilter}
-            onChange={(e) => {
-              setCategoryFilter(e.target.value);
-              setCurrentPage(1);
-            }}
-          >
-            <option value="">كل التصنيفات</option>
-            {categories.map((cat) => (
-              <option key={cat.id} value={cat.id}>
-                {cat.name}
-              </option>
-            ))}
-          </select>
-          <select
-            className="filter-select"
             value={stockFilter}
             onChange={(e) => {
               setStockFilter(e.target.value);
@@ -499,7 +475,6 @@ const Products: React.FC = () => {
           <button
             className="btn btn-outline btn-sm"
             onClick={() => {
-              setCategoryFilter("");
               setStockFilter("");
               setSearchQuery("");
               setCurrentPage(1);
@@ -528,7 +503,6 @@ const Products: React.FC = () => {
                   />
                 </th>
                 <th>المنتج</th>
-                <th>التصنيف</th>
                 <th>السعر</th>
                 <th>المخزون</th>
                 <th>الحالة</th>
@@ -557,10 +531,6 @@ const Products: React.FC = () => {
                         <span className="product-id">#{product.id}</span>
                       </div>
                     </div>
-                  </td>
-                  <td>
-                    {categories.find((c) => c.id === product.category)?.name ||
-                      product.category}
                   </td>
                   <td>
                     <div className="price-cell">
@@ -772,22 +742,16 @@ const Products: React.FC = () => {
 
                 <div className="form-row">
                   <div className="form-group">
-                    <label className="form-label">التصنيف</label>
-                    <select
-                      className="form-select"
-                      value={formData.category}
+                    <label className="form-label">العلامة / المصدر</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="مثال: نعيمي حساوي"
+                      value={formData.brand}
                       onChange={(e) =>
-                        setFormData({ ...formData, category: e.target.value })
+                        setFormData({ ...formData, brand: e.target.value })
                       }
-                      required
-                    >
-                      <option value="">اختر التصنيف</option>
-                      {categories.map((cat) => (
-                        <option key={cat.id} value={cat.id}>
-                          {cat.name}
-                        </option>
-                      ))}
-                    </select>
+                    />
                   </div>
                   <div className="form-group">
                     <label className="form-label">المخزون</label>

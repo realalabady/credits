@@ -11,7 +11,8 @@
     "store:create": "node functions/scripts/create-store.js",
     "store:admin": "node functions/scripts/set-store-admin.js",
     "store:move": "node functions/scripts/move-collection.js",
-    "store:migrate": "node functions/scripts/migrate-to-store.js"
+    "store:migrate": "node functions/scripts/migrate-to-store.js",
+    "store:seed": "node functions/scripts/seed-products.js"
   },
   "dependencies": {
     "firebase": "^12.7.0",

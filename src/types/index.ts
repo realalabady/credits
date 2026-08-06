@@ -49,6 +49,11 @@ export interface Product {
   rating?: number;
   reviewCount?: number;
   features?: string[];
+
+  // حقول تسويقية/SEO — تكتبها سكربتات الزرع، والواجهة تتجاهل غير الموجود منها
+  shortDescription?: string;
+  slug?: string;
+  tags?: string[];
 }
 
 export interface Order {

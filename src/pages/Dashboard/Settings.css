@@ -245,6 +245,43 @@
   font-weight: 500;
 }
 
+/* PayPal Settings */
+.paypal-settings {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+}
+
+.paypal-settings h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  color: #0070ba;
+  font-size: 1rem;
+}
+
+.settings-hint-list {
+  margin: 0.75rem 0;
+  padding-inline-start: 1.25rem;
+  display: grid;
+  gap: 0.5rem;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.8;
+}
+
+.settings-hint-list code,
+.paypal-settings code {
+  background: var(--surface-2, rgba(127, 127, 127, 0.12));
+  border-radius: 4px;
+  padding: 0.1rem 0.35rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85em;
+  direction: ltr;
+  display: inline-block;
+}
+
 /* Toggle Switch */
 .toggle {
   position: relative;
@@ -330,7 +367,8 @@
 
 .btn-primary {
   background: var(--primary);
-  color: white;
+  /* انظر Account.css: الأبيض فوق الأكسنت يسقط في الوضع الداكن. */
+  color: var(--on-primary);
 }
 
 .btn-primary:hover {

@@ -16,6 +16,7 @@ import { addOrder, getSettings } from "../../services/firestore";
 import Header from "../../components/Header/Header";
 import Footer from "../../components/Footer/Footer";
 import { useToast } from "../../components/Toast/Toast";
+import PayPalCardForm from "../../components/PayPalCardForm/PayPalCardForm";
 import "./Checkout.css";
 
 interface ShippingSettings {
@@ -31,12 +32,19 @@ interface PaymentMethod {
   enabled: boolean;
 }
 
-// طرق الدفع المسموح بها للعميل. تمارا/تابي/باي بال أُخفيت من واجهة العميل.
-const ALLOWED_METHOD_IDS = ["cash", "bank", "emkan"] as const;
+// طرق الدفع المسموح بها للعميل. تمارا/تابي أُخفيت من واجهة العميل.
+const ALLOWED_METHOD_IDS = ["cash", "bank", "card", "emkan"] as const;
+
+const CARD_METHOD: PaymentMethod = {
+  id: "card",
+  name: "بطاقة ائتمان / مدى (PayPal)",
+  enabled: true,
+};
 
 const DEFAULT_PAYMENT_METHODS: PaymentMethod[] = [
   { id: "cash", name: "الدفع عند الاستلام", enabled: true },
   { id: "bank", name: "التحويل البنكي", enabled: true },
+  CARD_METHOD,
   { id: "emkan", name: "إمكان - قسّمها على 5", enabled: true },
 ];
 
@@ -70,6 +78,12 @@ const Checkout: React.FC = () => {
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+  // معالجة الدفع بالبطاقة جارية (يمنع مغادرة الخطوة أثناء الدفع)
+  const [paypalProcessing, setPaypalProcessing] = useState(false);
+  // مرجع ثابت لعملية الدفع، يُستخدم كمعرّف مستند pending_payments في الخادم.
+  const [paypalReference] = useState(
+    () => `pp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+  );
 
   // يجب تسجيل الدخول قبل الوصول للدفع
   useEffect(() => {
@@ -99,6 +113,10 @@ const Checkout: React.FC = () => {
                 name: "إمكان - قسّمها على 5",
                 enabled: true,
               });
+            }
+            // الدفع بالبطاقة عبر PayPal مفعّل دائماً كخيار أساسي.
+            if (!allowed.some((m: PaymentMethod) => m.id === "card")) {
+              allowed.push({ ...CARD_METHOD });
             }
             if (allowed.length > 0) {
               setPaymentMethods(allowed);
@@ -171,7 +189,10 @@ const Checkout: React.FC = () => {
     }
   };
 
-  const handleSubmitOrder = async () => {
+  const handleSubmitOrder = async (paypalPayment?: {
+    paypalOrderId: string;
+    captureId: string;
+  }) => {
     if (!user) {
       navigate("/login?redirect=/checkout");
       return;
@@ -191,7 +212,9 @@ const Checkout: React.FC = () => {
           );
         }
       }
-      if (stockErrors.length > 0) {
+      // إذا تم سحب المبلغ عبر PayPal فلا نلغي الطلب هنا؛ نُنشئه ويتابع المتجر
+      // نقص المخزون مع العميل بدل ضياع دفعة تمت بالفعل.
+      if (stockErrors.length > 0 && !paypalPayment) {
         showToast(
           "بعض المنتجات غير متوفرة بالكمية المطلوبة:\n" +
             stockErrors.join("\n"),
@@ -222,6 +245,15 @@ const Checkout: React.FC = () => {
         paymentMethod: formData.paymentMethod,
         // إمكان: الطلب معلّق حتى يدفع العميل عبر الرابط الذي يرسله المتجر.
         ...(isEmkan ? { paymentStatus: "pending" as const } : {}),
+        // PayPal: الدفع تم بالفعل قبل إنشاء الطلب، لذا نحفظه مدفوعاً مع مراجعه.
+        ...(paypalPayment
+          ? {
+              paymentStatus: "paid" as const,
+              paypalOrderId: paypalPayment.paypalOrderId,
+              paypalCaptureId: paypalPayment.captureId,
+              paidAt: new Date(),
+            }
+          : {}),
         shippingAddress: `${formData.city}، ${formData.district}، ${formData.street}${formData.building ? `، مبنى ${formData.building}` : ""}${formData.nationalAddress ? `، العنوان الوطني: ${formData.nationalAddress}` : ""}`,
 
         address: {
@@ -506,6 +538,9 @@ const Checkout: React.FC = () => {
                                 {method.id === "bank" && (
                                   <CreditCard size={24} />
                                 )}
+                                {method.id === "card" && (
+                                  <CreditCard size={24} />
+                                )}
                                 {method.id === "emkan" && <Clock size={24} />}
                                 <div>
                                   <strong>{method.name}</strong>
@@ -514,6 +549,11 @@ const Checkout: React.FC = () => {
                                   )}
                                   {method.id === "bank" && (
                                     <span>تحويل إلى الحساب البنكي</span>
+                                  )}
+                                  {method.id === "card" && (
+                                    <span>
+                                      ادفع مباشرة ببطاقتك بشكل آمن عبر PayPal
+                                    </span>
                                   )}
                                   {method.id === "emkan" && (
                                     <span>
@@ -543,6 +583,28 @@ const Checkout: React.FC = () => {
                           <p className="note">
                             يرجى إرسال إيصال التحويل عبر الواتساب
                           </p>
+                        </div>
+                      )}
+
+                      {formData.paymentMethod === "card" && (
+                        <div className="card-payment-details">
+                          <PayPalCardForm
+                            amount={total}
+                            currency="SAR"
+                            orderId={paypalReference}
+                            items={cart.map((item) => ({
+                              productId: item.product.id,
+                              quantity: item.quantity,
+                            }))}
+                            onProcessing={setPaypalProcessing}
+                            onSuccess={(capture) =>
+                              handleSubmitOrder({
+                                paypalOrderId: capture.paypalOrderId,
+                                captureId: capture.captureId,
+                              })
+                            }
+                            onError={(message) => showToast(message, "error")}
+                          />
                         </div>
                       )}
 
@@ -581,27 +643,31 @@ const Checkout: React.FC = () => {
                     <button
                       className="btn btn-outline"
                       onClick={() => setStep(1)}
-                      disabled={loading}
+                      disabled={loading || paypalProcessing}
                     >
                       <ArrowRight size={18} />
                       السابق
                     </button>
-                    <button
-                      className="btn btn-primary"
-                      onClick={handleSubmitOrder}
-                      disabled={loading}
-                    >
-                      {loading ? (
-                        <>
-                          <Loader className="spinner" size={18} />
-                          جاري إرسال الطلب...
-                        </>
-                      ) : formData.paymentMethod === "emkan" ? (
-                        `تأكيد الطلب (قيد الانتظار) - ${formatPrice(total)}`
-                      ) : (
-                        `تأكيد الطلب - ${formatPrice(total)}`
-                      )}
-                    </button>
+                    {/* الدفع بالبطاقة يتم من داخل نموذج PayPal نفسه، لذا لا
+                        نعرض زر التأكيد اليدوي في هذه الحالة. */}
+                    {formData.paymentMethod !== "card" && (
+                      <button
+                        className="btn btn-primary"
+                        onClick={() => handleSubmitOrder()}
+                        disabled={loading}
+                      >
+                        {loading ? (
+                          <>
+                            <Loader className="spinner" size={18} />
+                            جاري إرسال الطلب...
+                          </>
+                        ) : formData.paymentMethod === "emkan" ? (
+                          `تأكيد الطلب (قيد الانتظار) - ${formatPrice(total)}`
+                        ) : (
+                          `تأكيد الطلب - ${formatPrice(total)}`
+                        )}
+                      </button>
+                    )}
                   </div>
                 </div>
               )}

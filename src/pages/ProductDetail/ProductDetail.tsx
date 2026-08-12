@@ -384,22 +384,22 @@ const ProductDetail: React.FC = () => {
               <div className="feature">
                 <Truck size={20} aria-hidden="true" />
                 <div>
-                  <strong>توصيل مبرّد</strong>
-                  <span>خلال 24 ساعة داخل المدينة</span>
+                  <strong>تسليم فوري</strong>
+                  <span>على بريدك فور اكتمال الطلب</span>
                 </div>
               </div>
               <div className="feature">
                 <Shield size={20} aria-hidden="true" />
                 <div>
-                  <strong>ذبح حلال</strong>
-                  <span>بإشراف شرعي في مسلخ معتمد</span>
+                  <strong>صالحة 12 شهراً</strong>
+                  <span>من تاريخ الشراء</span>
                 </div>
               </div>
               <div className="feature">
                 <RotateCcw size={20} aria-hidden="true" />
                 <div>
-                  <strong>وزن معتمد</strong>
-                  <span>الوزن الصافي بعد التنظيف</span>
+                  <strong>رصيد لا يضيع</strong>
+                  <span>تُستخدم على أكثر من طلب</span>
                 </div>
               </div>
             </div>
@@ -465,22 +465,22 @@ const ProductDetail: React.FC = () => {
               <div className="tab-shipping">
                 <div className="shipping-info-block">
                   <h4>
-                    <Truck size={18} aria-hidden="true" /> التوصيل
+                    <Truck size={18} aria-hidden="true" /> التسليم
                   </h4>
                   <ul>
-                    <li>توصيل مبرّد خلال 24 ساعة داخل المدينة</li>
-                    <li>توصيل مجاني للطلبات فوق 500 ر.س</li>
-                    <li>إمكانية الاستلام المباشر من المسلخ</li>
+                    <li>تصلك البطاقة ورمزها على بريدك فور اكتمال الطلب</li>
+                    <li>لا رسوم إصدار ولا رسوم تحويل</li>
+                    <li>يمكن إرسالها إلى بريد شخص آخر مع رسالة قصيرة</li>
                   </ul>
                 </div>
                 <div className="shipping-info-block">
                   <h4>
-                    <RotateCcw size={18} aria-hidden="true" /> الاستبدال
+                    <RotateCcw size={18} aria-hidden="true" /> الاستخدام والاسترداد
                   </h4>
                   <ul>
-                    <li>بلّغنا خلال ساعتين من الاستلام عند وجود ملاحظة</li>
-                    <li>نستبدل الطلب أو نرد المبلغ كاملاً</li>
-                    <li>لا يشمل الطلبات المجهّزة حسب طلب خاص بعد الاستلام</li>
+                    <li>صالحة 12 شهراً من تاريخ الشراء</li>
+                    <li>تُستخدم على أكثر من طلب حتى ينفد رصيدها</li>
+                    <li>غير قابلة للاسترداد نقداً</li>
                   </ul>
                 </div>
               </div>

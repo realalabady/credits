@@ -28,15 +28,15 @@ const Footer: React.FC = () => {
             <div className="feature-item">
               <Truck size={32} />
               <div>
-                <h4>توصيل مبرّد</h4>
-                <p>لجميع مناطق المملكة</p>
+                <h4>تسليم فوري</h4>
+                <p>على بريدك خلال دقائق</p>
               </div>
             </div>
             <div className="feature-item">
               <Shield size={32} />
               <div>
-                <h4>ذبح حلال</h4>
-                <p>بإشراف شرعي معتمد</p>
+                <h4>صالحة 12 شهراً</h4>
+                <p>بلا رسوم إصدار</p>
               </div>
             </div>
             <div className="feature-item">
@@ -65,8 +65,8 @@ const Footer: React.FC = () => {
             <div className="footer-section">
               <h3 className="footer-title">{storeName}</h3>
               <p className="footer-about">
-                نبيع الأغنام والمواشي مباشرة من المربّين. نختار كل رأس بأنفسنا،
-                ونجهّزه بذبح حلال، ونوصله مبرّداً إلى بابك.
+                بطاقات هدايا رقمية بست فئات من 500 إلى 3000 ريال. تصل على البريد
+                فور الشراء، وتُستخدم على أكثر من طلب حتى ينفد رصيدها.
               </p>
               <div className="footer-social">
                 <a href="#" className="social-link">

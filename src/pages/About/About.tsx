@@ -14,7 +14,7 @@ const About: React.FC = () => {
       <section className="about-hero">
         <div className="container">
           <h1>من نحن</h1>
-          <p>{storeName} - أغنام من المربّي إلى بابك</p>
+          <p>{storeName} - بطاقات هدايا رقمية تصل في دقائق</p>
         </div>
       </section>
 
@@ -25,21 +25,19 @@ const About: React.FC = () => {
             <div className="story-content">
               <h2>قصتنا</h2>
               <p>
-                بدأ {storeName} من علاقة طويلة مع المربّين في المنطقة. كنا نشتري
-                لأهلنا ومعارفنا، ثم صار الطلب أكبر من أن يُدار بالهاتف، فبنينا
-                هذا المتجر.
+                بدأ {storeName} من سؤال يتكرر قبل كل مناسبة: ماذا نهدي؟ الهدية
+                الخاطئة تُنسى في الدرج، والصحيحة تحتاج معرفة بذوق صاحبها ومقاسه.
               </p>
               <p>
-                نعاين القطيع بأنفسنا في المرعى، ونختار الرؤوس السليمة فقط، ثم
-                نذبحها على الطريقة الشرعية في مسلخ معتمد، ونوصلها مبرّدة إلى
-                بابك. لا وسطاء بيننا وبين المزرعة، ولذلك يبقى السعر قريباً من
-                سعر السوق.
+                فبنينا متجراً لا يبيع إلا البطاقات: ست فئات واضحة، سعر ظاهر بلا
+                رسوم إصدار، ورمز يصل على البريد خلال دقائق. من تُهديه يختار
+                بنفسه، ويبقى الرصيد قائماً حتى ينفد.
               </p>
             </div>
             <div className="story-photo">
               <img
-                src={MEDIA.farm}
-                alt="مزرعة أغنام"
+                src={MEDIA.gifting}
+                alt="بطاقات هدايا مرتبة فوق بعضها"
                 loading="lazy"
                 width={900}
                 height={700}
@@ -58,36 +56,36 @@ const About: React.FC = () => {
               <div className="feature-icon">
                 <ScrollText size={32} aria-hidden="true" />
               </div>
-              <h3>ذبح حلال</h3>
-              <p>كل رأس يُذبح بإشراف شرعي في مسلخ معتمد</p>
+              <h3>صالحة 12 شهراً</h3>
+              <p>من تاريخ الشراء، ولا تنتهي فجأة دون إشعار</p>
             </div>
             <div className="feature-card">
               <div className="feature-icon">
                 <Sprout size={32} aria-hidden="true" />
               </div>
-              <h3>من المربّي مباشرة</h3>
-              <p>نشتري من المزرعة دون وسطاء، ونعاين القطيع بأنفسنا</p>
+              <h3>تُهديها لمن تشاء</h3>
+              <p>ترسلها إلى بريد شخص آخر مع رسالة قصيرة</p>
             </div>
             <div className="feature-card">
               <div className="feature-icon">
                 <Scale size={32} aria-hidden="true" />
               </div>
-              <h3>وزن معتمد</h3>
-              <p>تدفع على الوزن الصافي بعد التنظيف، ويصلك كشف الوزن</p>
+              <h3>رصيد لا يضيع</h3>
+              <p>تُستخدم على أكثر من طلب حتى ينفد رصيدها بالكامل</p>
             </div>
             <div className="feature-card">
               <div className="feature-icon">
                 <Truck size={32} aria-hidden="true" />
               </div>
-              <h3>توصيل مبرّد</h3>
-              <p>سلسلة تبريد كاملة من المسلخ حتى باب بيتك</p>
+              <h3>تسليم فوري</h3>
+              <p>يصلك الرمز على بريدك فور اكتمال الطلب</p>
             </div>
             <div className="feature-card">
               <div className="feature-icon">
                 <Shield size={32} aria-hidden="true" />
               </div>
-              <h3>فحص بيطري</h3>
-              <p>لا نبيع إلا الرؤوس السليمة، ونستبعد ما دون ذلك</p>
+              <h3>بلا رسوم خفية</h3>
+              <p>لا رسوم إصدار ولا رسوم تحويل — تدفع قيمة البطاقة فقط</p>
             </div>
             <div className="feature-card">
               <div className="feature-icon">
@@ -103,11 +101,11 @@ const About: React.FC = () => {
       {/* CTA Section */}
       <section className="about-cta">
         <div className="container">
-          <h2>جاهز تحجز رأسك؟</h2>
-          <p>اطّلع على المعروض اليوم واختر ما يناسب مناسبتك</p>
+          <h2>جاهز تختار فئتك؟</h2>
+          <p>ست فئات من 500 إلى 3000 ريال، تصل على البريد في دقائق</p>
           <div className="cta-buttons">
             <Link to="/products" className="btn btn-primary btn-lg">
-              تصفح المنتجات
+              تصفح البطاقات
             </Link>
             <Link to="/contact" className="btn btn-outline btn-lg">
               اتصل بنا

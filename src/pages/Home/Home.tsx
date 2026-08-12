@@ -16,39 +16,39 @@ import "./Home.css";
 
 const assurances = [
   {
-    icon: ScrollText,
-    title: "ذبح حلال بإشراف شرعي",
-    text: "كل رأس يُذبح على الطريقة الشرعية في مسلخ معتمد.",
+    icon: Truck,
+    title: "تسليم فوري بالبريد",
+    text: "تصلك البطاقة ورمزها على بريدك فور اكتمال الطلب.",
   },
   {
-    icon: Truck,
-    title: "توصيل مبرّد خلال 24 ساعة",
-    text: "سلسلة تبريد كاملة من المسلخ حتى باب بيتك.",
+    icon: ScrollText,
+    title: "صالحة 12 شهراً",
+    text: "من تاريخ الشراء، بلا رسوم إصدار ولا رسوم تحويل.",
   },
   {
     icon: Scale,
-    title: "وزن معتمد بعد التنظيف",
-    text: "تدفع على الوزن الصافي، ويصلك كشف الوزن مع الطلب.",
+    title: "تُستخدم على أكثر من طلب",
+    text: "يبقى الرصيد قائماً حتى ينفد، وتدفع الفرق إن زاد الطلب.",
   },
   {
     icon: ShieldCheck,
-    title: "دفع آمن أو عند الاستلام",
-    text: "ادفع إلكترونياً أو نقداً عند وصول الطلب.",
+    title: "دفع آمن",
+    text: "ادفع إلكترونياً، ويصلك الرمز في رسالة واحدة.",
   },
 ];
 
 const steps = [
   {
     title: "اختر",
-    text: "حدد الرأس والوزن الذي يناسب مناسبتك من المعروض.",
+    text: "حدد الفئة التي تناسب مناسبتك، من 500 إلى 3000 ريال.",
   },
   {
-    title: "جهّز",
-    text: "ذبح وتقطيع وتنظيف حسب الطريقة التي تفضّلها.",
+    title: "أرسل",
+    text: "إلى بريدك أو إلى بريد من تُهديه، مع رسالة قصيرة.",
   },
   {
-    title: "استلم",
-    text: "توصيل مبرّد إلى بابك، أو استلام مباشر من المسلخ.",
+    title: "استخدم",
+    text: "أدخل الرمز عند الدفع ليُخصم من قيمة الطلب.",
   },
 ];
 
@@ -67,32 +67,32 @@ const Home: React.FC = () => {
         <div className="container">
           <div className="hero-content">
             <div className="hero-text">
-              <span className="hero-eyebrow">ذبح وتجهيز في نفس اليوم</span>
+              <span className="hero-eyebrow">تصل على البريد خلال دقائق</span>
               <h1>
-                أغنام مختارة باليد،
+                بطاقة هدية،
                 <br />
-                تصل إليك طازجة
+                تُرسلها في دقيقة
               </h1>
               <p>
-                نختار كل رأس من المرعى، ونجهّزه حسب طلبك، ويصل إلى بابك في نفس
-                اليوم.
+                ست فئات من 500 إلى 3000 ريال. تصل على بريدك أو بريد من تُهديه،
+                وتُستخدم على أكثر من طلب حتى ينفد رصيدها.
               </p>
               <div className="hero-buttons">
                 <Link to="/products" className="btn btn-primary btn-lg">
-                  تصفح المنتجات
+                  تصفح البطاقات
                 </Link>
                 <Link
                   to="/products?featured=true"
                   className="btn btn-outline btn-lg"
                 >
-                  عروض اليوم
+                  الأكثر طلباً
                 </Link>
               </div>
             </div>
             <div className="hero-image">
               <img
-                src={MEDIA.heroFlock}
-                alt="قطيع من الأغنام في المرعى"
+                src={MEDIA.hero}
+                alt="مروحة من بطاقات الهدايا"
                 width={1200}
                 height={1000}
                 fetchPriority="high"
@@ -127,13 +127,13 @@ const Home: React.FC = () => {
           <div className="container">
             <div className="featured-bento">
               <div className="bento-tile reveal">
-                <h2>جاهز للمناسبة</h2>
+                <h2>الفئات الأكثر طلباً</h2>
                 <p>
-                  رؤوس اخترناها لعزائم هذا الأسبوع، بوزن معروف وسعر ثابت قبل
-                  الذبح.
+                  فئة 1000 ريال تغطي معظم الطلبات دفعة واحدة، وفئة 3000 للمناسبات
+                  الكبرى والإهداء المؤسسي.
                 </p>
                 <Link to="/products?featured=true" className="tile-link">
-                  عروض اليوم <ChevronLeft size={18} aria-hidden="true" />
+                  الأكثر طلباً <ChevronLeft size={18} aria-hidden="true" />
                 </Link>
               </div>
               {featuredProducts.map((product, i) => (
@@ -152,14 +152,14 @@ const Home: React.FC = () => {
         </section>
       )}
 
-      {/* Full-bleed pasture band — one line, no metrics invented */}
+      {/* Full-bleed denominations band — one line, no metrics invented */}
       <section
         className="pasture-band"
-        style={{ backgroundImage: `url(${MEDIA.pastureWide})` }}
+        style={{ backgroundImage: `url(${MEDIA.denominations})` }}
       >
         <div className="container">
           <p className="reveal">
-            نعرف المرعى الذي رعى فيه كل رأس، والراعي الذي اعتنى به.
+            ست فئات ثابتة، بلا رسوم خفية وبلا تاريخ انتهاء مفاجئ.
           </p>
         </div>
       </section>
@@ -167,7 +167,7 @@ const Home: React.FC = () => {
       {/* Process — three steps, tinted surface, no imagery */}
       <section className="process">
         <div className="container">
-          <h2 className="reveal">من المرعى إلى مائدتك</h2>
+          <h2 className="reveal">من الشراء إلى الاستخدام</h2>
           <ol className="process-steps">
             {steps.map((step, i) => (
               <li
@@ -189,22 +189,22 @@ const Home: React.FC = () => {
           <div className="story-content">
             <div className="story-media reveal">
               <img
-                src={MEDIA.closeUp}
-                alt="رأس غنم في المرعى"
+                src={MEDIA.envelope}
+                alt="بطاقة هدية داخل ظرف"
                 loading="lazy"
                 width={900}
                 height={1100}
               />
             </div>
             <div className="story-text reveal">
-              <h2>نشتري من الراعي مباشرة</h2>
+              <h2>هدية لا تحتاج مقاساً</h2>
               <p>
-                لا وسطاء بيننا وبين المزارع. نعاين القطيع بأنفسنا، ونختار الرؤوس
-                السليمة فقط، فتصلك بسعر أقرب لسعر السوق وجودة نضمنها.
+                البطاقة تترك الاختيار لمن تُهديه: يشتري ما يريده هو، وقت ما
+                يناسبه، دون أن تخمّن ذوقه أو مقاسه.
               </p>
               <p>
-                ولأن الوزن هو ما تدفع عليه، نزن بعد التنظيف أمامك ونرسل لك كشف
-                الوزن مع الطلب.
+                ولأنها رقمية، تصل في دقائق لا في أيام — تشتريها الليلة وتصل قبل
+                المناسبة.
               </p>
               <Link to="/about" className="story-link">
                 من نحن <ChevronLeft size={18} aria-hidden="true" />
@@ -233,7 +233,7 @@ const Home: React.FC = () => {
             <div className="empty-products">
               <Inbox size={44} aria-hidden="true" />
               <p>لا توجد منتجات بعد</p>
-              <span>أضف أول رأس من لوحة التحكم ليظهر هنا</span>
+              <span>أضف أول بطاقة من لوحة التحكم لتظهر هنا</span>
               <Link
                 to="/dashboard/products"
                 className="btn btn-primary"
@@ -251,10 +251,10 @@ const Home: React.FC = () => {
         <div className="container">
           <div className="cta-inner reveal">
             <h2>عندك مناسبة قريبة؟</h2>
-            <p>احجز رأسك اليوم ونجهّزه في الموعد الذي تحدده.</p>
+            <p>اشترِ البطاقة الآن، وتصل على البريد قبل أن تنتهي من الصفحة.</p>
             <div className="cta-actions">
               <Link to="/products" className="btn btn-lg cta-primary">
-                تصفح المنتجات
+                تصفح البطاقات
               </Link>
               <Link to="/contact" className="cta-secondary">
                 اتصل بنا

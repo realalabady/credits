@@ -1,17 +1,21 @@
 #!/usr/bin/env node
 /**
- * يزرع كتالوج الذبائح في متجر واحد:
+ * يزرع كتالوجاً في متجر واحد:
  *
  *   stores/{storeId}/products/{autoId}
  *
- * البيانات في functions/scripts/data/sheep-products.js — عدّلها هناك لا هنا.
+ * البيانات في functions/scripts/data/<catalogue>.js — عدّلها هناك لا هنا.
  *
  * الاستخدام:
- *   node functions/scripts/seed-products.js <storeId> [plan|apply|replace]
+ *   node functions/scripts/seed-products.js <storeId> [plan|apply|replace] [catalogue]
  *
  *   plan     (الافتراضي) لا يكتب شيئاً، يطبع ما سيحدث فقط.
  *   apply    يضيف المنتجات الناقصة ويتخطى ما سبق زرعه (المطابقة بحقل slug).
  *   replace  يحذف كل منتج سبق زرعه بنفس الـ slug ثم يعيد كتابته من جديد.
+ *
+ *   catalogue: sheep (الافتراضي) = كتالوج الذبائح | cards = بطاقات الهدايا |
+ *              social = باقات إدارة حسابات التواصل.
+ *   الافتراضي sheep حفاظاً على الاستخدام القائم في leapsmart.
  *
  * الوضع كلمة مجرّدة لا راية (--plan): npm يبتلع الرايات حتى بعد `--`،
  * فتصير راية ضائعة عملية كتابة غير مقصودة. الافتراضي هو الخيار الآمن.
@@ -21,14 +25,21 @@
  */
 
 const admin = require("firebase-admin");
-const { products } = require("./data/sheep-products");
 
-const [storeId, modeArg] = process.argv.slice(2);
+// الكتالوجات المتاحة. الإضافة هنا فقط: ملف بيانات يصدّر { products }.
+const CATALOGUES = {
+  sheep: "./data/sheep-products",
+  cards: "./data/gift-cards",
+  social: "./data/social-packages",
+};
+
+const [storeId, modeArg, catalogueArg] = process.argv.slice(2);
 const mode = modeArg || "plan";
+const catalogue = catalogueArg || "sheep";
 
 if (!storeId || !/^[a-z0-9][a-z0-9-]{0,63}$/.test(storeId)) {
   console.error(
-    "Usage: node seed-products.js <storeId> [plan|apply|replace]\n" +
+    "Usage: node seed-products.js <storeId> [plan|apply|replace] [catalogue]\n" +
       "storeId must be a slug: lowercase letters, digits and dashes.",
   );
   process.exit(1);
@@ -37,6 +48,14 @@ if (!["plan", "apply", "replace"].includes(mode)) {
   console.error(`وضع غير معروف: ${mode}. المتاح: plan | apply | replace`);
   process.exit(1);
 }
+if (!CATALOGUES[catalogue]) {
+  console.error(
+    `كتالوج غير معروف: ${catalogue}. المتاح: ${Object.keys(CATALOGUES).join(" | ")}`,
+  );
+  process.exit(1);
+}
+
+const { products } = require(CATALOGUES[catalogue]);
 
 // معرّف المشروع: من البيئة، وإلا من .env (VITE_FIREBASE_PROJECT_ID) — بدونه
 // يفشل Firestore برسالة "Unable to detect a Project Id" غير مفهومة.
@@ -99,7 +118,9 @@ async function main() {
   const skipped = products.length - toWrite.length;
 
   console.log(`المتجر: stores/${storeId}`);
-  console.log(`الكتالوج: ${sane.slugs} منتجاً، ${sane.images} صورة فريدة`);
+  console.log(
+    `الكتالوج: ${catalogue} — ${sane.slugs} منتجاً، ${sane.images} صورة فريدة`,
+  );
   console.log(`موجود مسبقاً (بنفس الـ slug): ${existing.size}`);
   console.log(`سيُكتب: ${toWrite.length} | سيُتخطى: ${skipped}`);
   console.log(

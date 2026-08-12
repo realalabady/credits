@@ -60,7 +60,8 @@ const Settings: React.FC = () => {
   const [paymentMethods, setPaymentMethods] = useState([
     { id: "cash", name: "الدفع عند الاستلام", enabled: true },
     { id: "bank", name: "التحويل البنكي", enabled: true },
-    { id: "card", name: "بطاقة ائتمان (PayPal)", enabled: true },
+    { id: "card", name: "بطاقة ائتمان / مدى (PayPal)", enabled: true },
+    { id: "emkan", name: "إمكان - قسّمها على 5", enabled: true },
     { id: "tamara", name: "تمارا - قسّمها على 3", enabled: true },
     { id: "tabby", name: "تابي - قسّمها على 4", enabled: true },
   ]);
@@ -106,8 +107,17 @@ const Settings: React.FC = () => {
           if (settings.shipping) setShippingSettings(settings.shipping);
           if (settings.notifications)
             setNotificationSettings(settings.notifications);
-          if (settings.payment?.methods)
-            setPaymentMethods(settings.payment.methods);
+          if (settings.payment?.methods) {
+            // ندمج المحفوظ مع القائمة الافتراضية حتى تظهر الطرق المضافة حديثاً
+            // (مثل PayPal وإمكان) في المتاجر التي حفظت إعداداتها قبل إضافتها.
+            const saved = settings.payment.methods;
+            setPaymentMethods((defaults) => [
+              ...defaults.map(
+                (d) => saved.find((s) => s.id === d.id) ?? d,
+              ),
+              ...saved.filter((s) => !defaults.some((d) => d.id === s.id)),
+            ]);
+          }
         }
         // Email SMTP settings live in a separate admin-only doc.
         const email = await getEmailSettings();
@@ -588,8 +598,12 @@ const Settings: React.FC = () => {
                           {method.id === "cash" &&
                             "يدفع العميل عند استلام الطلب"}
                           {method.id === "bank" && "تحويل مباشر للحساب البنكي"}
-                          {method.id === "card" && "Visa, Mastercard, Mada"}
+                          {method.id === "card" &&
+                            "Visa, Mastercard, Mada عبر PayPal"}
+                          {method.id === "emkan" &&
+                            "تقسيط على 5 دفعات (طلب معلّق حتى الدفع)"}
                           {method.id === "tamara" && "اشترِ الآن وادفع لاحقاً"}
+                          {method.id === "tabby" && "اشترِ الآن وادفع لاحقاً"}
                         </span>
                       </div>
                       <label className="toggle">
@@ -597,12 +611,48 @@ const Settings: React.FC = () => {
                           type="checkbox"
                           checked={method.enabled}
                           onChange={() => togglePaymentMethod(method.id)}
-                          disabled={method.id === "card"}
                         />
                         <span className="toggle-slider"></span>
                       </label>
                     </div>
                   ))}
+                </div>
+
+                {/* PayPal Settings */}
+                <div className="paypal-settings">
+                  <h3>
+                    <CreditCard size={18} />
+                    إعدادات PayPal
+                  </h3>
+                  <p className="settings-description">
+                    مفاتيح PayPal لا تُحفظ في لوحة التحكم لأسباب أمنية — المفتاح
+                    السري يجب أن يبقى على الخادم فقط. أضِفها في ملفات البيئة ثم
+                    أعِد النشر:
+                  </p>
+                  <ul className="settings-hint-list">
+                    <li>
+                      <code>functions/.env</code> (الخادم):{" "}
+                      <code>PAYPAL_CLIENT_ID</code>،{" "}
+                      <code>PAYPAL_CLIENT_SECRET</code>،{" "}
+                      <code>PAYPAL_MODE=sandbox | live</code>
+                    </li>
+                    <li>
+                      <code>.env</code> (الواجهة):{" "}
+                      <code>VITE_PAYPAL_CLIENT_ID</code> — نفس Client ID (ليس
+                      المفتاح السري)
+                    </li>
+                  </ul>
+                  <p className="settings-description">
+                    احصل على المفاتيح من{" "}
+                    <a
+                      href="https://developer.paypal.com/dashboard/applications"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      لوحة مطوري PayPal
+                    </a>{" "}
+                    ← Apps &amp; Credentials.
+                  </p>
                 </div>
 
                 {/* Tamara Settings */}

@@ -257,7 +257,9 @@
 
 .btn-primary {
   background: var(--primary);
-  color: white;
+  /* لا تضع white هنا: في الوضع الداكن الأكسنت ذهب فاتح، والأبيض عليه غير مقروء.
+     --on-primary هو اللون الوحيد المسموح فوق تعبئة --primary (DESIGN.md §2). */
+  color: var(--on-primary);
 }
 
 .btn-primary:hover {

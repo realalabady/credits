@@ -76,12 +76,22 @@
   display: grid;
   grid-template-columns: 1fr 380px;
   gap: 2rem;
+  /* عناصر الشبكة تأخذ min-width:auto افتراضياً، فيوسّع إطار PayPal العمود
+     الأول ويكسر التخطيط. min-width:0 يبقيه داخل حدود الشبكة. */
+  min-width: 0;
 }
 
 .checkout-form {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+  min-width: 0;
+}
+
+/* حاوية نموذج الدفع بالبطاقة داخل خطوة الدفع */
+.card-payment-details {
+  margin-top: 1.5rem;
+  min-width: 0;
 }
 
 .form-card {
@@ -124,7 +134,7 @@
 
 .form-group label {
   font-weight: 500;
-  color: var(--text);
+  color: var(--ink);
   font-size: 0.9rem;
 }
 
@@ -209,7 +219,7 @@
 
 .option-content strong {
   font-size: 1rem;
-  color: var(--text);
+  color: var(--ink);
 }
 
 .option-content span {
@@ -226,7 +236,7 @@
 
 .bank-details h4 {
   margin-bottom: 0.75rem;
-  color: var(--text);
+  color: var(--ink);
 }
 
 .bank-details p {
@@ -595,7 +605,7 @@
 .item-name {
   font-size: 0.9rem;
   font-weight: 500;
-  color: var(--text);
+  color: var(--ink);
 }
 
 .item-qty {
@@ -623,7 +633,7 @@
 .summary-row.total {
   font-size: 1.2rem;
   font-weight: 700;
-  color: var(--text);
+  color: var(--ink);
   margin-top: 1rem;
   padding-top: 1rem;
   border-top: 1px solid var(--border);

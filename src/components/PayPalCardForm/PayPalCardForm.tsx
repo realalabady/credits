@@ -1,10 +1,47 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { CreditCard, Loader, AlertCircle, Lock } from "lucide-react";
 import {
   createPayPalOrder,
   capturePayPalOrder,
 } from "../../services/paypal";
 import "./PayPalCardForm.css";
+
+// نفس سعر التحويل المستخدم في الخادم (functions/src/paypalClient.ts).
+// PayPal لا يدعم الريال، فيُحوَّل المبلغ إلى الدولار قبل الدفع.
+const SAR_TO_USD = 0.27;
+
+// تحميل SDK مرة واحدة لكل الصفحة. سابقاً كان كل تركيب للمكوّن يحذف الوسم
+// ويعيد إضافته، فينتج زرّان عند تركيب React للمكوّن مرتين (StrictMode).
+let sdkPromise: Promise<void> | null = null;
+
+function loadPayPalSDK(): Promise<void> {
+  if (sdkPromise) return sdkPromise;
+
+  sdkPromise = new Promise((resolve, reject) => {
+    const clientId = import.meta.env.VITE_PAYPAL_CLIENT_ID;
+    if (!clientId) {
+      reject(new Error("PayPal Client ID غير موجود"));
+      return;
+    }
+
+    if ((window as any).paypal) {
+      resolve();
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = `https://www.paypal.com/sdk/js?client-id=${clientId}&currency=USD&components=buttons,funding-eligibility&locale=ar_SA`;
+    script.async = true;
+    script.onload = () => resolve();
+    script.onerror = () => {
+      sdkPromise = null; // اسمح بإعادة المحاولة عند فشل الشبكة
+      reject(new Error("فشل تحميل PayPal"));
+    };
+    document.body.appendChild(script);
+  });
+
+  return sdkPromise;
+}
 
 interface PayPalCardFormProps {
   amount: number;
@@ -31,63 +68,48 @@ const PayPalCardForm: React.FC<PayPalCardFormProps> = ({
 }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const buttonRendered = useRef(false);
-  const mounted = useRef(true);
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  // تحويل المبلغ من ريال إلى دولار
-  const usdAmount = (amount * 0.27).toFixed(2);
+  // الزر يُركَّب مرة واحدة، بينما المبلغ والسلة قد يتغيّران. نحتفظ بأحدث القيم
+  // في مراجع ليقرأها createOrder لحظة الضغط بدل إعادة بناء الزر كلما تغيّرت.
+  const latest = useRef({
+    amount,
+    currency,
+    orderId,
+    items,
+    onSuccess,
+    onError,
+    onProcessing,
+  });
+  latest.current = {
+    amount,
+    currency,
+    orderId,
+    items,
+    onSuccess,
+    onError,
+    onProcessing,
+  };
+
+  const usdAmount = (amount * SAR_TO_USD).toFixed(2);
 
   useEffect(() => {
-    mounted.current = true;
-    buttonRendered.current = false;
-
-    const loadPayPalSDK = (): Promise<void> => {
-      return new Promise((resolve, reject) => {
-        // إزالة SDK القديم إذا موجود
-        const existingScript = document.querySelector('script[src*="paypal.com/sdk"]');
-        if (existingScript) {
-          existingScript.remove();
-          delete (window as any).paypal;
-        }
-
-        const clientId = import.meta.env.VITE_PAYPAL_CLIENT_ID;
-        if (!clientId) {
-          reject(new Error("PayPal Client ID غير موجود"));
-          return;
-        }
-
-        const script = document.createElement("script");
-        // تحميل SDK مع دعم البطاقات
-        script.src = `https://www.paypal.com/sdk/js?client-id=${clientId}&currency=USD&components=buttons,funding-eligibility&locale=ar_SA`;
-        script.async = true;
-        script.onload = () => resolve();
-        script.onerror = () => reject(new Error("فشل تحميل PayPal"));
-        document.body.appendChild(script);
-      });
-    };
+    let cancelled = false;
+    let instance: { close?: () => void } | null = null;
 
     const initCardButton = async () => {
       try {
         await loadPayPalSDK();
-        
-        if (!mounted.current) return;
+        if (cancelled) return;
 
         const paypal = (window as any).paypal;
-        if (!paypal) {
-          throw new Error("PayPal SDK غير متاح");
-        }
+        const container = containerRef.current;
+        if (!paypal || !container) return;
 
-        // انتظر حتى تظهر العناصر
-        await new Promise(resolve => setTimeout(resolve, 200));
+        // نظّف أي زر سابق قبل الرسم حتى لا تتراكم الأزرار.
+        container.innerHTML = "";
 
-        const container = document.getElementById("paypal-card-button");
-        if (!container || buttonRendered.current) {
-          setLoading(false);
-          return;
-        }
-
-        // عرض زر البطاقة فقط (بدون PayPal)
-        await paypal.Buttons({
+        const buttons = paypal.Buttons({
           fundingSource: paypal.FUNDING.CARD,
           style: {
             layout: "vertical",
@@ -97,29 +119,31 @@ const PayPalCardForm: React.FC<PayPalCardFormProps> = ({
             height: 50,
           },
           createOrder: async () => {
+            const l = latest.current;
             try {
-              onProcessing?.(true);
+              l.onProcessing?.(true);
               setError(null);
-              
+
               const result = await createPayPalOrder({
-                amount,
-                currency,
-                orderId,
-                items,
-                description: `طلب #${orderId}`,
+                amount: l.amount,
+                currency: l.currency,
+                orderId: l.orderId,
+                items: l.items,
+                description: `طلب #${l.orderId}`,
               });
               return result.id;
             } catch (err: any) {
               console.error("Create order error:", err);
               const msg = err.message || "خطأ في إنشاء طلب الدفع";
               setError(msg);
-              onProcessing?.(false);
+              l.onProcessing?.(false);
               throw err;
             }
           },
           onApprove: async (data: { orderID: string }) => {
+            const l = latest.current;
             try {
-              onProcessing?.(true);
+              l.onProcessing?.(true);
               // ملاحظة: طلب Firestore يُنشأ بعد نجاح الالتقاط في هذا التدفق،
               // لذا لا نمرر firestoreOrderId هنا. التحقق يتم عبر سجل الدفع المعلّق.
               const result = await capturePayPalOrder({
@@ -127,7 +151,7 @@ const PayPalCardForm: React.FC<PayPalCardFormProps> = ({
               });
 
               if (result.status === "COMPLETED") {
-                onSuccess({
+                l.onSuccess({
                   paypalOrderId: data.orderID,
                   captureId: result.captureId,
                   status: result.status,
@@ -139,41 +163,52 @@ const PayPalCardForm: React.FC<PayPalCardFormProps> = ({
               console.error("Capture error:", err);
               const msg = err.message || "خطأ في تأكيد الدفع";
               setError(msg);
-              onError(msg);
+              l.onError(msg);
             } finally {
-              onProcessing?.(false);
+              l.onProcessing?.(false);
             }
           },
           onCancel: () => {
             setError("تم إلغاء عملية الدفع");
-            onProcessing?.(false);
+            latest.current.onProcessing?.(false);
           },
           onError: (err: any) => {
             console.error("Card button error:", err);
             setError("حدث خطأ في معالجة البطاقة");
-            onError("حدث خطأ في معالجة البطاقة");
-            onProcessing?.(false);
+            latest.current.onError("حدث خطأ في معالجة البطاقة");
+            latest.current.onProcessing?.(false);
           },
-        }).render("#paypal-card-button");
+        });
 
-        buttonRendered.current = true;
+        instance = buttons;
+        await buttons.render(container);
+
+        // قد يُفكَّك المكوّن أثناء الرسم — عندها ننظّف ما رُسم للتو.
+        if (cancelled) {
+          container.innerHTML = "";
+          return;
+        }
         setLoading(false);
       } catch (err: any) {
+        if (cancelled) return;
         console.error("PayPal Card init error:", err);
-        if (mounted.current) {
-          setError(err.message || "خطأ في تهيئة نموذج الدفع");
-          setLoading(false);
-        }
+        setError(err.message || "خطأ في تهيئة نموذج الدفع");
+        setLoading(false);
       }
     };
 
     initCardButton();
 
     return () => {
-      mounted.current = false;
+      cancelled = true;
+      try {
+        instance?.close?.();
+      } catch {
+        // close() يرمي أحياناً إذا لم يكتمل الرسم — لا يضر تجاهله.
+      }
+      if (containerRef.current) containerRef.current.innerHTML = "";
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [amount, currency, orderId]);
+  }, []);
 
   return (
     <div className="paypal-card-form">
@@ -181,7 +216,11 @@ const PayPalCardForm: React.FC<PayPalCardFormProps> = ({
         <CreditCard size={20} />
         <span>ادفع بالبطاقة</span>
         <div className="card-brands">
-          <img src="https://www.paypalobjects.com/webstatic/mktg/logo/AM_mc_vs_dc_ae.jpg" alt="Visa Mastercard Amex" />
+          <img
+            src="https://www.paypalobjects.com/webstatic/mktg/logo/AM_mc_vs_dc_ae.jpg"
+            alt="Visa Mastercard Amex"
+            loading="lazy"
+          />
         </div>
       </div>
 
@@ -204,7 +243,7 @@ const PayPalCardForm: React.FC<PayPalCardFormProps> = ({
         </div>
       )}
 
-      <div id="paypal-card-button" className="paypal-card-button-container"></div>
+      <div ref={containerRef} className="paypal-card-button-container"></div>
 
       <p className="card-form-note">
         <Lock size={14} />

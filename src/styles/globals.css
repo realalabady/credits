@@ -2,42 +2,45 @@
 
 /* ============================================
    DESIGN SYSTEM TOKENS  (see /DESIGN.md)
-   Quiet-premium livestock retail. One decisive accent (Pasture Olive).
+   Quiet-premium gift-card retail. One decisive accent (Antique Gold).
    Light is default; dark is a true theme, not inverted grays.
    Legacy variable names are kept + mapped so existing pages don't break.
    ============================================ */
 :root {
-  /* Neutrals — cool stone canvas, true ink (never #000) */
-  --bg: #f7f7f5;
-  --bg-subtle: #efefec;
+  /* Neutrals — warm paper canvas, true ink (never #000) */
+  --bg: #f8f7f4;
+  --bg-subtle: #f0eee8;
   --surface: #ffffff;
-  --surface-2: #fbfbfa;
-  --ink: #1b1d19;
-  --ink-soft: #66695f;
-  --mid: #a4a79c;
-  --line: #e6e6e1;
-  --line-strong: #d6d7cf;
+  --surface-2: #fbfaf7;
+  --ink: #1a1815;
+  --ink-soft: #6a655c;
+  --mid: #a8a397;
+  --line: #e8e5dd;
+  --line-strong: #d8d4c8;
 
-  /* Pasture Olive — the single accent, locked across every surface */
-  --primary: #415c30;
-  --primary-dark: #334a26;
-  --primary-tint: rgba(65, 92, 48, 0.10);
-  --primary-ring: rgba(65, 92, 48, 0.20);
+  /* Antique Gold — the single accent, locked across every surface.
+     Deliberately darkened: white on this fill measures 7.71:1 (AAA), and the
+     same value as text on --bg measures 7.19:1. A brighter, "prettier" gold
+     (#8a6516 and up) drops to 5.3:1 and fails AAA — do not lighten it. */
+  --primary: #6b4e10;
+  --primary-dark: #543d0c;
+  --primary-tint: rgba(107, 78, 16, 0.10);
+  --primary-ring: rgba(107, 78, 16, 0.20);
   /* Text/icon color that always sits ON a --primary fill */
   --on-primary: #ffffff;
 
   --accent-blue: #3f6ea5;
-  --accent-green: #415c30;
+  --accent-green: #2f6b4f;
   --danger: #b42318;
 
   /* Legacy variable names mapped to the palette */
   --secondary: #3f6ea5;
-  --success: #415c30;
+  --success: #2f6b4f;
   --warning: #9a5b16;
-  --dark: #1b1d19;
-  --light: #f7f7f5;
-  --gray: #66695f;
-  --border: #e6e6e1;
+  --dark: #1a1815;
+  --light: #f8f7f4;
+  --gray: #6a655c;
+  --border: #e8e5dd;
 
   /* Radii — one scale, applied everywhere (shape consistency lock) */
   --radius-sm: 10px;
@@ -45,18 +48,18 @@
   --radius-lg: 20px;
 
   /* Flat "gradients" (kept as variable names so references don't break) */
-  --gradient-primary: #415c30;
-  --gradient-success: #415c30;
+  --gradient-primary: #6b4e10;
+  --gradient-success: #2f6b4f;
   --gradient-danger: #b42318;
-  --gradient-gold: #9a5b16;
-  --gradient-dark: #1b1d19;
+  --gradient-gold: #6b4e10;
+  --gradient-dark: #1a1815;
 
   /* Layered, tinted shadows — depth without muddiness */
-  --shadow-sm: 0 1px 2px rgba(27, 29, 25, 0.05);
-  --shadow-md: 0 1px 2px rgba(27, 29, 25, 0.04), 0 8px 24px -12px rgba(27, 29, 25, 0.14);
-  --shadow-lg: 0 2px 4px rgba(27, 29, 25, 0.05), 0 18px 40px -16px rgba(27, 29, 25, 0.20);
-  --shadow-primary: 0 8px 24px -10px rgba(65, 92, 48, 0.45);
-  --shadow-success: 0 8px 24px -12px rgba(65, 92, 48, 0.35);
+  --shadow-sm: 0 1px 2px rgba(26, 24, 21, 0.05);
+  --shadow-md: 0 1px 2px rgba(26, 24, 21, 0.04), 0 8px 24px -12px rgba(26, 24, 21, 0.14);
+  --shadow-lg: 0 2px 4px rgba(26, 24, 21, 0.05), 0 18px 40px -16px rgba(26, 24, 21, 0.20);
+  --shadow-primary: 0 8px 24px -10px rgba(107, 78, 16, 0.45);
+  --shadow-success: 0 8px 24px -12px rgba(47, 107, 79, 0.35);
   --shadow-danger: 0 8px 24px -12px rgba(180, 35, 24, 0.35);
 
   color-scheme: light;
@@ -64,43 +67,44 @@
 
 /* True dark theme — stamped via data-theme, with prefers-color-scheme fallback */
 :root[data-theme="dark"] {
-  --bg: #101210;
-  --bg-subtle: #161815;
-  --surface: #1a1d19;
-  --surface-2: #1f221d;
-  --ink: #f2f3ef;
-  --ink-soft: #9ba096;
-  --mid: #6c7166;
-  --line: rgba(242, 243, 239, 0.10);
-  --line-strong: rgba(242, 243, 239, 0.16);
+  --bg: #0f0f0d;
+  --bg-subtle: #151412;
+  --surface: #1a1815;
+  --surface-2: #201e1a;
+  --ink: #f3f1ec;
+  --ink-soft: #a09a8e;
+  --mid: #706a5f;
+  --line: rgba(243, 241, 236, 0.10);
+  --line-strong: rgba(243, 241, 236, 0.16);
 
-  /* Lifted olive so it reads on dark; ink sits on the fill, never white */
-  --primary: #a3cc78;
-  --primary-dark: #b9dc93;
-  --primary-tint: rgba(163, 204, 120, 0.14);
-  --primary-ring: rgba(163, 204, 120, 0.28);
-  --on-primary: #141a0e;
+  /* Lifted gold so it reads on dark; ink sits on the fill, never white.
+     Fill vs ink measures 10.92:1, and as text on --bg it measures 11.30:1. */
+  --primary: #e3c46a;
+  --primary-dark: #eed489;
+  --primary-tint: rgba(227, 196, 106, 0.14);
+  --primary-ring: rgba(227, 196, 106, 0.28);
+  --on-primary: #171308;
 
   --accent-blue: #6f9fd6;
-  --accent-green: #a3cc78;
+  --accent-green: #6cc79b;
   --danger: #e06a5f;
 
   --secondary: #6f9fd6;
-  --success: #a3cc78;
+  --success: #6cc79b;
   --warning: #d9a25a;
   /* --dark and --light are used by components as literal dark/light SURFACES
      (e.g. the header top-bar and footer are `background: var(--dark); color: white`).
      They must NOT be inverted here or those bars go white-on-white. */
-  --dark: #1a1d19;
-  --light: #f7f7f5;
-  --gray: #9ba096;
-  --border: rgba(242, 243, 239, 0.10);
+  --dark: #1a1815;
+  --light: #f8f7f4;
+  --gray: #a09a8e;
+  --border: rgba(243, 241, 236, 0.10);
 
-  --gradient-primary: #a3cc78;
-  --gradient-success: #a3cc78;
+  --gradient-primary: #e3c46a;
+  --gradient-success: #6cc79b;
   --gradient-danger: #e06a5f;
-  --gradient-gold: #d9a25a;
-  --gradient-dark: #1a1d19;
+  --gradient-gold: #e3c46a;
+  --gradient-dark: #1a1815;
 
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow-md: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 28px -12px rgba(0, 0, 0, 0.6);

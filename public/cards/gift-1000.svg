@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 380" width="600" height="380" role="img" aria-label="بطاقة هدية سلفة بقيمة 1000 ريال">
+  <defs>
+    <linearGradient id="g1000" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0f5c58"/>
+      <stop offset="1" stop-color="#1c8f86"/>
+    </linearGradient>
+    <linearGradient id="g1000chip" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#8fe3d6"/>
+      <stop offset="1" stop-color="#8fe3d6" stop-opacity="0.55"/>
+    </linearGradient>
+    <clipPath id="g1000clip"><rect width="600" height="380" rx="28"/></clipPath>
+  </defs>
+
+  <g clip-path="url(#g1000clip)">
+    <rect width="600" height="380" fill="url(#g1000)"/>
+    <!-- شرائح قطرية خفيفة تعطي عمقاً دون تشتيت -->
+    <g opacity="0.10" fill="#8fe3d6">
+      <path d="M-120 380 L180 -40 L280 -40 L-20 380 Z"/>
+      <path d="M60 380 L360 -40 L410 -40 L110 380 Z"/>
+    </g>
+    <circle cx="520" cy="70" r="150" fill="#8fe3d6" opacity="0.08"/>
+
+    <!-- الشريحة الذهبية -->
+    <g transform="translate(56,150)">
+      <rect width="70" height="52" rx="9" fill="url(#g1000chip)"/>
+      <g stroke="#0f5c58" stroke-opacity="0.55" stroke-width="2" fill="none">
+        <path d="M0 18 H70 M0 34 H70 M24 0 V52 M46 0 V52"/>
+      </g>
+    </g>
+
+    <text x="544" y="74" text-anchor="end" font-family="'Tajawal','Cairo','Segoe UI',sans-serif" font-size="30" font-weight="700" fill="#eafcf8">بطاقة هدية</text>
+    <text x="544" y="108" text-anchor="end" font-family="'Tajawal','Cairo','Segoe UI',sans-serif" font-size="19" fill="#8fe3d6">زمردية · Selfah</text>
+
+    <text x="544" y="252" text-anchor="end" font-family="'Tajawal','Cairo','Segoe UI',sans-serif" font-size="104" font-weight="800" fill="#eafcf8">1000</text>
+    <text x="544" y="292" text-anchor="end" font-family="'Tajawal','Cairo','Segoe UI',sans-serif" font-size="26" fill="#8fe3d6">ريال سعودي</text>
+
+    <text x="56" y="330" font-family="'Tajawal','Cairo','Segoe UI',sans-serif" font-size="18" fill="#eafcf8" opacity="0.72">صالحة 12 شهراً · تُرسل بالبريد</text>
+
+    <rect x="1" y="1" width="598" height="378" rx="28" fill="none" stroke="#8fe3d6" stroke-opacity="0.35" stroke-width="2"/>
+  </g>
+</svg>

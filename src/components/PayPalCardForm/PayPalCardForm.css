@@ -1,8 +1,15 @@
 .paypal-card-form {
-  background: #f8f9fa;
-  border-radius: 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
   padding: 1.5rem;
   margin-top: 1rem;
+  /* يمنع إطار PayPal من دفع تخطيط الدفع أفقياً على الشاشات الضيقة */
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  overflow-x: hidden;
 }
 
 .paypal-loading {
@@ -31,36 +38,46 @@
 .card-form-header {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 0.5rem;
   margin-bottom: 1rem;
   padding-bottom: 1rem;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--line);
 }
 
 .card-form-header span {
   font-weight: 600;
-  color: var(--text);
+  color: var(--ink);
 }
 
 .card-brands {
-  margin-right: auto;
+  margin-inline-start: auto;
+  min-width: 0;
 }
 
 .card-brands img {
   height: 24px;
+  max-width: 100%;
   object-fit: contain;
+  border-radius: 4px;
 }
 
 .card-form-error {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.5rem;
   padding: 0.75rem 1rem;
-  background: #fee2e2;
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
   color: var(--danger);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   margin-bottom: 1rem;
   font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+
+.card-form-error svg {
+  flex-shrink: 0;
+  margin-top: 2px;
 }
 
 .currency-notice {
@@ -69,8 +86,8 @@
   align-items: center;
   gap: 0.25rem;
   padding: 1rem;
-  background: var(--bg);
-  border-radius: 10px;
+  background: var(--bg-subtle);
+  border-radius: var(--radius-sm);
   margin-bottom: 1rem;
   text-align: center;
 }
@@ -103,13 +120,13 @@
 .card-field-group label {
   font-size: 0.9rem;
   font-weight: 600;
-  color: var(--text);
+  color: var(--ink);
 }
 
 .card-field {
-  background: white;
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
   padding: 0.75rem 1rem;
   min-height: 46px;
   transition: border-color 0.2s, box-shadow 0.2s;
@@ -117,7 +134,7 @@
 
 .card-field:focus-within {
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  box-shadow: 0 0 0 3px var(--primary-ring);
 }
 
 .card-field-row {
@@ -132,9 +149,9 @@
   justify-content: center;
   gap: 0.5rem;
   background: var(--primary);
-  color: white;
+  color: var(--on-primary);
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   padding: 1rem;
   font-size: 1rem;
   font-weight: 600;
@@ -157,6 +174,16 @@
 
 .paypal-card-button-container {
   min-height: 55px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+/* إطار PayPal يأتي بعرض ثابت أحياناً — نجبره على ملء العرض المتاح فقط. */
+.paypal-card-button-container iframe,
+.paypal-card-button-container > div {
+  width: 100% !important;
+  max-width: 100% !important;
 }
 
 .card-form-note {
@@ -166,7 +193,8 @@
   gap: 0.5rem;
   margin-top: 1rem;
   font-size: 0.85rem;
-  color: var(--gray);
+  color: var(--ink-soft);
+  text-align: center;
 }
 
 /* تعديلات للشاشات الصغيرة */
@@ -175,14 +203,18 @@
     padding: 1rem;
   }
 
-  .card-form-header {
-    flex-wrap: wrap;
-  }
-
   .card-brands {
     width: 100%;
     margin-top: 0.5rem;
-    margin-right: 0;
+    margin-inline-start: 0;
+  }
+
+  .currency-notice .sar-amount {
+    font-size: 1.25rem;
+  }
+
+  .currency-notice .usd-equivalent {
+    font-size: 1rem;
   }
 
   .card-field-row {

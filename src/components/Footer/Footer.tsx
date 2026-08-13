@@ -28,15 +28,15 @@ const Footer: React.FC = () => {
             <div className="feature-item">
               <Truck size={32} />
               <div>
-                <h4>تسليم فوري</h4>
-                <p>على بريدك خلال دقائق</p>
+                <h4>تقويم معتمد</h4>
+                <p>قبل نشر أي محتوى</p>
               </div>
             </div>
             <div className="feature-item">
               <Shield size={32} />
               <div>
-                <h4>صالحة 12 شهراً</h4>
-                <p>بلا رسوم إصدار</p>
+                <h4>بلا عقد سنوي</h4>
+                <p>اشتراك شهري متجدد</p>
               </div>
             </div>
             <div className="feature-item">
@@ -65,8 +65,8 @@ const Footer: React.FC = () => {
             <div className="footer-section">
               <h3 className="footer-title">{storeName}</h3>
               <p className="footer-about">
-                بطاقات هدايا رقمية بست فئات من 500 إلى 3000 ريال. تصل على البريد
-                فور الشراء، وتُستخدم على أكثر من طلب حتى ينفد رصيدها.
+                إدارة حسابات التواصل الاجتماعي بست باقات شهرية من 500 إلى 3000
+                ريال: محتوى مكتوب ومصمّم، إدارة للتفاعل، وتقارير أداء بالأرقام.
               </p>
               <div className="footer-social">
                 <a href="#" className="social-link">

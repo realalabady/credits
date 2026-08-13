@@ -25,12 +25,22 @@ function getBaseUrl(): string {
   return mode === "live" ? PAYPAL_LIVE_URL : PAYPAL_SANDBOX_URL;
 }
 
+// PayPal's token is valid ~9 hours. Fetching a fresh one on every call added a
+// full round trip to PayPal before any real work started — on both create and
+// capture. Cache it in module memory (per warm instance) and reuse until it is
+// close to expiring. A 60s safety margin avoids racing the expiry.
+let cachedToken: { value: string; expiresAt: number } | null = null;
+
 // Get PayPal access token
 async function getAccessToken(): Promise<string> {
   const { clientId, clientSecret } = getPayPalConfig();
-  
+
   if (!clientId || !clientSecret) {
     throw new Error("PayPal credentials not configured");
+  }
+
+  if (cachedToken && Date.now() < cachedToken.expiresAt) {
+    return cachedToken.value;
   }
 
   const auth = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
@@ -51,6 +61,12 @@ async function getAccessToken(): Promise<string> {
     console.error("PayPal auth error:", data);
     throw new Error(data.error_description || "Failed to get PayPal access token");
   }
+
+  const ttlSeconds = Number(data.expires_in) || 3600;
+  cachedToken = {
+    value: data.access_token,
+    expiresAt: Date.now() + Math.max(ttlSeconds - 60, 0) * 1000,
+  };
 
   return data.access_token;
 }

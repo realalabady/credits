@@ -175,16 +175,20 @@
   margin-bottom: 14px;
 }
 
+/* أرقام جدولية: الباقات الست تُعرض في شبكة واحدة، وبدون tabular-nums تختلف
+   عروض الأرقام فتهتزّ أعمدة الأسعار بين بطاقة وأخرى (DESIGN.md §3). */
 .current-price {
   font-size: 20px;
   font-weight: 800;
   color: var(--ink);
+  font-variant-numeric: tabular-nums;
 }
 
 .old-price {
   font-size: 14px;
   color: var(--ink-soft);
   text-decoration: line-through;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Add to Cart */

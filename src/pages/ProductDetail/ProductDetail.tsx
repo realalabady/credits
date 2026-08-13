@@ -384,22 +384,22 @@ const ProductDetail: React.FC = () => {
               <div className="feature">
                 <Truck size={20} aria-hidden="true" />
                 <div>
-                  <strong>تسليم فوري</strong>
-                  <span>على بريدك فور اكتمال الطلب</span>
+                  <strong>بداية خلال 3 أيام</strong>
+                  <span>من جلسة التعريف إلى أول تقويم</span>
                 </div>
               </div>
               <div className="feature">
                 <Shield size={20} aria-hidden="true" />
                 <div>
-                  <strong>صالحة 12 شهراً</strong>
-                  <span>من تاريخ الشراء</span>
+                  <strong>اعتماد قبل النشر</strong>
+                  <span>لا يخرج منشور دون موافقتك</span>
                 </div>
               </div>
               <div className="feature">
                 <RotateCcw size={20} aria-hidden="true" />
                 <div>
-                  <strong>رصيد لا يضيع</strong>
-                  <span>تُستخدم على أكثر من طلب</span>
+                  <strong>ترقية أو إيقاف</strong>
+                  <span>اشتراك شهري بلا عقد سنوي</span>
                 </div>
               </div>
             </div>
@@ -465,22 +465,22 @@ const ProductDetail: React.FC = () => {
               <div className="tab-shipping">
                 <div className="shipping-info-block">
                   <h4>
-                    <Truck size={18} aria-hidden="true" /> التسليم
+                    <Truck size={18} aria-hidden="true" /> بداية العمل
                   </h4>
                   <ul>
-                    <li>تصلك البطاقة ورمزها على بريدك فور اكتمال الطلب</li>
-                    <li>لا رسوم إصدار ولا رسوم تحويل</li>
-                    <li>يمكن إرسالها إلى بريد شخص آخر مع رسالة قصيرة</li>
+                    <li>جلسة تعريف خلال يومي عمل من تأكيد الاشتراك</li>
+                    <li>أول تقويم محتوى يصلك للاعتماد خلال 3 أيام</li>
+                    <li>نعمل بصلاحيات إدارة على حساباتك — لا كلمات مرور</li>
                   </ul>
                 </div>
                 <div className="shipping-info-block">
                   <h4>
-                    <RotateCcw size={18} aria-hidden="true" /> الاستخدام والاسترداد
+                    <RotateCcw size={18} aria-hidden="true" /> الاشتراك والإيقاف
                   </h4>
                   <ul>
-                    <li>صالحة 12 شهراً من تاريخ الشراء</li>
-                    <li>تُستخدم على أكثر من طلب حتى ينفد رصيدها</li>
-                    <li>غير قابلة للاسترداد نقداً</li>
+                    <li>اشتراك شهري متجدد، بلا عقد سنوي</li>
+                    <li>الترقية لباقة أعلى في أي وقت ويُحتسب الفرق بالتناسب</li>
+                    <li>ميزانية الإعلانات تُدفع لمنصة الإعلان ولا تدخل في السعر</li>
                   </ul>
                 </div>
               </div>

@@ -14,7 +14,7 @@ const About: React.FC = () => {
       <section className="about-hero">
         <div className="container">
           <h1>من نحن</h1>
-          <p>{storeName} - بطاقات هدايا رقمية تصل في دقائق</p>
+          <p>{storeName} - إدارة حسابات التواصل الاجتماعي</p>
         </div>
       </section>
 
@@ -25,19 +25,20 @@ const About: React.FC = () => {
             <div className="story-content">
               <h2>قصتنا</h2>
               <p>
-                بدأ {storeName} من سؤال يتكرر قبل كل مناسبة: ماذا نهدي؟ الهدية
-                الخاطئة تُنسى في الدرج، والصحيحة تحتاج معرفة بذوق صاحبها ومقاسه.
+                بدأ {storeName} من ملاحظة تتكرر: أصحاب الأنشطة الصغيرة لا تنقصهم
+                الرغبة في النشر، ينقصهم وقت ثابت له. فيصير الحساب ينشط أسبوعاً
+                ويصمت شهراً.
               </p>
               <p>
-                فبنينا متجراً لا يبيع إلا البطاقات: ست فئات واضحة، سعر ظاهر بلا
-                رسوم إصدار، ورمز يصل على البريد خلال دقائق. من تُهديه يختار
-                بنفسه، ويبقى الرصيد قائماً حتى ينفد.
+                فبنينا خدمة بأسعار ظاهرة وحدود مكتوبة: تعرف قبل الاشتراك كم
+                منشوراً تأخذ، وعلى كم منصة، ومن يرد على تعليقات عملائك — بدل عرض
+                سعر مفتوح لا يقول شيئاً.
               </p>
             </div>
             <div className="story-photo">
               <img
-                src={MEDIA.gifting}
-                alt="بطاقات هدايا مرتبة فوق بعضها"
+                src={MEDIA.report}
+                alt="تقرير أداء بأعمدة بيانية"
                 loading="lazy"
                 width={900}
                 height={700}
@@ -56,36 +57,36 @@ const About: React.FC = () => {
               <div className="feature-icon">
                 <ScrollText size={32} aria-hidden="true" />
               </div>
-              <h3>صالحة 12 شهراً</h3>
-              <p>من تاريخ الشراء، ولا تنتهي فجأة دون إشعار</p>
+              <h3>حدود مكتوبة</h3>
+              <p>عدد المنشورات والمنصات مذكور في كل باقة قبل الاشتراك</p>
             </div>
             <div className="feature-card">
               <div className="feature-icon">
                 <Sprout size={32} aria-hidden="true" />
               </div>
-              <h3>تُهديها لمن تشاء</h3>
-              <p>ترسلها إلى بريد شخص آخر مع رسالة قصيرة</p>
+              <h3>اعتماد قبل النشر</h3>
+              <p>تقويم الشهر يصلك للمراجعة، ولا يخرج منشور دون موافقتك</p>
             </div>
             <div className="feature-card">
               <div className="feature-icon">
                 <Scale size={32} aria-hidden="true" />
               </div>
-              <h3>رصيد لا يضيع</h3>
-              <p>تُستخدم على أكثر من طلب حتى ينفد رصيدها بالكامل</p>
+              <h3>تقارير بالأرقام</h3>
+              <p>وصول وتفاعل ونقرات من المنصة نفسها، لا لقطات منتقاة</p>
             </div>
             <div className="feature-card">
               <div className="feature-icon">
                 <Truck size={32} aria-hidden="true" />
               </div>
-              <h3>تسليم فوري</h3>
-              <p>يصلك الرمز على بريدك فور اكتمال الطلب</p>
+              <h3>ترقية بالتناسب</h3>
+              <p>تنتقل لباقة أعلى في أي وقت ويُحتسب الفرق على ما تبقّى</p>
             </div>
             <div className="feature-card">
               <div className="feature-icon">
                 <Shield size={32} aria-hidden="true" />
               </div>
-              <h3>بلا رسوم خفية</h3>
-              <p>لا رسوم إصدار ولا رسوم تحويل — تدفع قيمة البطاقة فقط</p>
+              <h3>حساباتك باسمك</h3>
+              <p>نعمل بصلاحيات إدارة، ولا نطلب كلمات مرورك في أي مرحلة</p>
             </div>
             <div className="feature-card">
               <div className="feature-icon">
@@ -101,11 +102,11 @@ const About: React.FC = () => {
       {/* CTA Section */}
       <section className="about-cta">
         <div className="container">
-          <h2>جاهز تختار فئتك؟</h2>
-          <p>ست فئات من 500 إلى 3000 ريال، تصل على البريد في دقائق</p>
+          <h2>جاهز تختار باقتك؟</h2>
+          <p>ست باقات من 500 إلى 3000 ريال شهرياً، بحدود واضحة مكتوبة</p>
           <div className="cta-buttons">
             <Link to="/products" className="btn btn-primary btn-lg">
-              تصفح البطاقات
+              تصفح الباقات
             </Link>
             <Link to="/contact" className="btn btn-outline btn-lg">
               اتصل بنا

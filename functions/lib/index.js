@@ -164,49 +164,62 @@ async function getStoreIdentity(storeId) {
  * Returns the server-computed total for downstream use.
  */
 async function validateOrderAmount(storeId, items, clientAmount) {
-    var _a, _b, _c, _d, _e, _f;
+    var _a, _b, _c;
     if (!Array.isArray(items) || items.length === 0) {
         throw new functions.https.HttpsError("invalid-argument", "عناصر الطلب مطلوبة");
     }
-    let subtotal = 0;
-    for (const item of items) {
+    // Validate shapes first so a bad payload fails before any I/O.
+    const lines = items.map((item) => {
         const productId = (item === null || item === void 0 ? void 0 : item.productId) || (item === null || item === void 0 ? void 0 : item.reference_id);
         const quantity = Number(item === null || item === void 0 ? void 0 : item.quantity) || 0;
         if (!productId || quantity <= 0) {
             throw new functions.https.HttpsError("invalid-argument", "عنصر طلب غير صالح");
         }
-        const productDoc = await storeDoc(storeId, "products", productId).get();
+        return { productId, quantity };
+    });
+    // Product reads ran one-at-a-time, so a cart of N items cost N sequential
+    // round trips on the checkout critical path. Fetch them concurrently, along
+    // with the shipping settings below.
+    const [productDocs, settingsDoc] = await Promise.all([
+        Promise.all(lines.map((l) => storeDoc(storeId, "products", l.productId).get())),
+        settingsRef(storeId, "store")
+            .get()
+            .catch((e) => {
+            console.error("validateOrderAmount: failed to read shipping settings", e);
+            return null;
+        }),
+    ]);
+    let subtotal = 0;
+    lines.forEach((line, i) => {
+        var _a, _b, _c;
+        const productDoc = productDocs[i];
         if (!productDoc.exists) {
-            throw new functions.https.HttpsError("invalid-argument", `المنتج غير موجود: ${productId}`);
+            throw new functions.https.HttpsError("invalid-argument", `المنتج غير موجود: ${line.productId}`);
         }
         const product = productDoc.data() || {};
         // Prefer the discounted/sale price if present, else the base price.
         const unitPrice = Number((_c = (_b = (_a = product.discountPrice) !== null && _a !== void 0 ? _a : product.salePrice) !== null && _b !== void 0 ? _b : product.price) !== null && _c !== void 0 ? _c : 0);
         if (!(unitPrice > 0)) {
-            throw new functions.https.HttpsError("invalid-argument", `سعر المنتج غير صالح: ${productId}`);
+            throw new functions.https.HttpsError("invalid-argument", `سعر المنتج غير صالح: ${line.productId}`);
         }
-        subtotal += unitPrice * quantity;
-    }
+        subtotal += unitPrice * line.quantity;
+    });
     // Shipping from settings/store (shipping sub-object). Free shipping if the
     // subtotal reaches the configured threshold.
+    // Read concurrently with the products above; null means the read failed and
+    // was already logged, in which case shipping stays 0.
     let shippingCost = 0;
-    try {
-        const settingsDoc = await settingsRef(storeId, "store").get();
-        const shipping = (_d = settingsDoc.data()) === null || _d === void 0 ? void 0 : _d.shipping;
-        if (shipping) {
-            const threshold = Number((_e = shipping.freeShippingThreshold) !== null && _e !== void 0 ? _e : 0);
-            const defaultCost = Number((_f = shipping.defaultShippingCost) !== null && _f !== void 0 ? _f : 0);
-            const freeEnabled = shipping.enableFreeShipping !== false;
-            if (freeEnabled && threshold > 0 && subtotal >= threshold) {
-                shippingCost = 0;
-            }
-            else {
-                shippingCost = defaultCost;
-            }
+    const shipping = (_a = settingsDoc === null || settingsDoc === void 0 ? void 0 : settingsDoc.data()) === null || _a === void 0 ? void 0 : _a.shipping;
+    if (shipping) {
+        const threshold = Number((_b = shipping.freeShippingThreshold) !== null && _b !== void 0 ? _b : 0);
+        const defaultCost = Number((_c = shipping.defaultShippingCost) !== null && _c !== void 0 ? _c : 0);
+        const freeEnabled = shipping.enableFreeShipping !== false;
+        if (freeEnabled && threshold > 0 && subtotal >= threshold) {
+            shippingCost = 0;
         }
-    }
-    catch (e) {
-        console.error("validateOrderAmount: failed to read shipping settings", e);
+        else {
+            shippingCost = defaultCost;
+        }
     }
     const expectedTotal = Math.round((subtotal + shippingCost) * 100) / 100;
     const submitted = Number(clientAmount);
@@ -1144,7 +1157,11 @@ exports.cjImageProxy = functions.https.onRequest(async (req, res) => {
     }
 });
 // ==================== PayPal - إنشاء طلب دفع ====================
-exports.paypalCreateOrder = functions.https.onCall(async (data, context) => {
+// 512MB بدل 256MB الافتراضية: الحصة الأكبر تعني وحدة معالجة أسرع، فيقل زمن
+// الإقلاع البارد الذي كان يضيف ~4.8 ثانية على مسار الدفع المرئي للعميل.
+exports.paypalCreateOrder = functions
+    .runWith({ memory: "512MB", timeoutSeconds: 60 })
+    .https.onCall(async (data, context) => {
     // التحقق من تسجيل الدخول
     if (!context.auth) {
         throw new functions.https.HttpsError("unauthenticated", "يجب تسجيل الدخول لإتمام الدفع");
@@ -1188,7 +1205,9 @@ exports.paypalCreateOrder = functions.https.onCall(async (data, context) => {
     }
 });
 // ==================== PayPal - تأكيد الدفع ====================
-exports.paypalCaptureOrder = functions.https.onCall(async (data, context) => {
+exports.paypalCaptureOrder = functions
+    .runWith({ memory: "512MB", timeoutSeconds: 60 })
+    .https.onCall(async (data, context) => {
     var _a;
     // التحقق من تسجيل الدخول
     if (!context.auth) {

@@ -16,39 +16,39 @@ import "./Home.css";
 
 const assurances = [
   {
-    icon: Truck,
-    title: "تسليم فوري بالبريد",
-    text: "تصلك البطاقة ورمزها على بريدك فور اكتمال الطلب.",
-  },
-  {
     icon: ScrollText,
-    title: "صالحة 12 شهراً",
-    text: "من تاريخ الشراء، بلا رسوم إصدار ولا رسوم تحويل.",
+    title: "تقويم محتوى قبل النشر",
+    text: "تعتمد محتوى الشهر كاملاً قبل أن يُنشر منه شيء.",
   },
   {
     icon: Scale,
-    title: "تُستخدم على أكثر من طلب",
-    text: "يبقى الرصيد قائماً حتى ينفد، وتدفع الفرق إن زاد الطلب.",
+    title: "تقارير بأرقام لا انطباعات",
+    text: "وصول وتفاعل ونقرات، مع قراءة لما نجح وما لم ينجح.",
   },
   {
     icon: ShieldCheck,
-    title: "دفع آمن",
-    text: "ادفع إلكترونياً، ويصلك الرمز في رسالة واحدة.",
+    title: "حساباتك تبقى ملكك",
+    text: "نعمل عبر صلاحيات إدارة، ولا نطلب كلمات مرورك.",
+  },
+  {
+    icon: Truck,
+    title: "ترقية أو إيقاف متى شئت",
+    text: "اشتراك شهري بلا عقد سنوي، ويُحتسب فرق الترقية بالتناسب.",
   },
 ];
 
 const steps = [
   {
-    title: "اختر",
-    text: "حدد الفئة التي تناسب مناسبتك، من 500 إلى 3000 ريال.",
+    title: "نفهم",
+    text: "جلسة تعريف نحدد فيها جمهورك ونبرة صوتك وأهداف الشهر.",
   },
   {
-    title: "أرسل",
-    text: "إلى بريدك أو إلى بريد من تُهديه، مع رسالة قصيرة.",
+    title: "نخطط",
+    text: "تقويم محتوى مكتوب ومصمّم، يصلك للاعتماد قبل بداية الشهر.",
   },
   {
-    title: "استخدم",
-    text: "أدخل الرمز عند الدفع ليُخصم من قيمة الطلب.",
+    title: "ننشر ونقيس",
+    text: "ننشر في أوقات الذروة، ندير التفاعل، ونرجع إليك بتقرير.",
   },
 ];
 
@@ -67,19 +67,19 @@ const Home: React.FC = () => {
         <div className="container">
           <div className="hero-content">
             <div className="hero-text">
-              <span className="hero-eyebrow">تصل على البريد خلال دقائق</span>
+              <span className="hero-eyebrow">اشتراك شهري بلا عقد سنوي</span>
               <h1>
-                بطاقة هدية،
+                حساباتك تُدار،
                 <br />
-                تُرسلها في دقيقة
+                لا تُترك للصدفة
               </h1>
               <p>
-                ست فئات من 500 إلى 3000 ريال. تصل على بريدك أو بريد من تُهديه،
-                وتُستخدم على أكثر من طلب حتى ينفد رصيدها.
+                ست باقات من 500 إلى 3000 ريال شهرياً. تقويم محتوى تعتمده قبل
+                النشر، إدارة يومية للتفاعل، وتقرير يقول لك ما الذي نجح فعلاً.
               </p>
               <div className="hero-buttons">
                 <Link to="/products" className="btn btn-primary btn-lg">
-                  تصفح البطاقات
+                  تصفح الباقات
                 </Link>
                 <Link
                   to="/products?featured=true"
@@ -92,7 +92,7 @@ const Home: React.FC = () => {
             <div className="hero-image">
               <img
                 src={MEDIA.hero}
-                alt="مروحة من بطاقات الهدايا"
+                alt="منحنى نمو صاعد مع إشعار تفاعل"
                 width={1200}
                 height={1000}
                 fetchPriority="high"
@@ -127,13 +127,13 @@ const Home: React.FC = () => {
           <div className="container">
             <div className="featured-bento">
               <div className="bento-tile reveal">
-                <h2>الفئات الأكثر طلباً</h2>
+                <h2>الباقتان الأكثر طلباً</h2>
                 <p>
-                  فئة 1000 ريال تغطي معظم الطلبات دفعة واحدة، وفئة 3000 للمناسبات
-                  الكبرى والإهداء المؤسسي.
+                  الاحترافية عند 1000 ريال تكفي معظم الأنشطة القائمة، والمؤسسية
+                  عند 3000 لمن يحتاج تغطية يومية وإدارة إعلانات بلا سقف.
                 </p>
                 <Link to="/products?featured=true" className="tile-link">
-                  الأكثر طلباً <ChevronLeft size={18} aria-hidden="true" />
+                  قارن الباقات <ChevronLeft size={18} aria-hidden="true" />
                 </Link>
               </div>
               {featuredProducts.map((product, i) => (
@@ -152,14 +152,14 @@ const Home: React.FC = () => {
         </section>
       )}
 
-      {/* Full-bleed denominations band — one line, no metrics invented */}
+      {/* Full-bleed tiers band — one line, no metrics invented */}
       <section
         className="pasture-band"
-        style={{ backgroundImage: `url(${MEDIA.denominations})` }}
+        style={{ backgroundImage: `url(${MEDIA.tiers})` }}
       >
         <div className="container">
           <p className="reveal">
-            ست فئات ثابتة، بلا رسوم خفية وبلا تاريخ انتهاء مفاجئ.
+            ست باقات واضحة، وميزانية الإعلانات تبقى عندك لا عندنا.
           </p>
         </div>
       </section>
@@ -167,7 +167,7 @@ const Home: React.FC = () => {
       {/* Process — three steps, tinted surface, no imagery */}
       <section className="process">
         <div className="container">
-          <h2 className="reveal">من الشراء إلى الاستخدام</h2>
+          <h2 className="reveal">كيف نشتغل معك</h2>
           <ol className="process-steps">
             {steps.map((step, i) => (
               <li
@@ -189,22 +189,22 @@ const Home: React.FC = () => {
           <div className="story-content">
             <div className="story-media reveal">
               <img
-                src={MEDIA.envelope}
-                alt="بطاقة هدية داخل ظرف"
+                src={MEDIA.calendar}
+                alt="شبكة تقويم محتوى شهري"
                 loading="lazy"
                 width={900}
                 height={1100}
               />
             </div>
             <div className="story-text reveal">
-              <h2>هدية لا تحتاج مقاساً</h2>
+              <h2>لا يُنشر شيء قبل موافقتك</h2>
               <p>
-                البطاقة تترك الاختيار لمن تُهديه: يشتري ما يريده هو، وقت ما
-                يناسبه، دون أن تخمّن ذوقه أو مقاسه.
+                تصلك خطة الشهر كاملة — النص والتصميم وموعد النشر — قبل أن ينشر
+                أحد شيئاً. تعدّل ما تريد، وما لا يعجبك لا يخرج.
               </p>
               <p>
-                ولأنها رقمية، تصل في دقائق لا في أيام — تشتريها الليلة وتصل قبل
-                المناسبة.
+                وفي نهاية الشهر يصلك تقرير بأرقام المنصة نفسها: كم وصل، كم تفاعل،
+                ومن أين جاء. لا لقطات شاشة منتقاة.
               </p>
               <Link to="/about" className="story-link">
                 من نحن <ChevronLeft size={18} aria-hidden="true" />
@@ -233,7 +233,7 @@ const Home: React.FC = () => {
             <div className="empty-products">
               <Inbox size={44} aria-hidden="true" />
               <p>لا توجد منتجات بعد</p>
-              <span>أضف أول بطاقة من لوحة التحكم لتظهر هنا</span>
+              <span>أضف أول باقة من لوحة التحكم لتظهر هنا</span>
               <Link
                 to="/dashboard/products"
                 className="btn btn-primary"
@@ -250,11 +250,11 @@ const Home: React.FC = () => {
       <section className="closing-cta">
         <div className="container">
           <div className="cta-inner reveal">
-            <h2>عندك مناسبة قريبة؟</h2>
-            <p>اشترِ البطاقة الآن، وتصل على البريد قبل أن تنتهي من الصفحة.</p>
+            <h2>حساباتك تنشر متى ما تذكّرت؟</h2>
+            <p>ابدأ الشهر بتقويم معتمد بدل منشور متأخر كُتب على عجل.</p>
             <div className="cta-actions">
               <Link to="/products" className="btn btn-lg cta-primary">
-                تصفح البطاقات
+                تصفح الباقات
               </Link>
               <Link to="/contact" className="cta-secondary">
                 اتصل بنا

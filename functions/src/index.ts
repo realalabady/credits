@@ -192,9 +192,8 @@ async function validateOrderAmount(
     );
   }
 
-  let subtotal = 0;
-
-  for (const item of items) {
+  // Validate shapes first so a bad payload fails before any I/O.
+  const lines = items.map((item) => {
     const productId = item?.productId || item?.reference_id;
     const quantity = Number(item?.quantity) || 0;
     if (!productId || quantity <= 0) {
@@ -203,11 +202,32 @@ async function validateOrderAmount(
         "عنصر طلب غير صالح",
       );
     }
-    const productDoc = await storeDoc(storeId, "products", productId).get();
+    return { productId, quantity };
+  });
+
+  // Product reads ran one-at-a-time, so a cart of N items cost N sequential
+  // round trips on the checkout critical path. Fetch them concurrently, along
+  // with the shipping settings below.
+  const [productDocs, settingsDoc] = await Promise.all([
+    Promise.all(
+      lines.map((l) => storeDoc(storeId, "products", l.productId).get()),
+    ),
+    settingsRef(storeId, "store")
+      .get()
+      .catch((e) => {
+        console.error("validateOrderAmount: failed to read shipping settings", e);
+        return null;
+      }),
+  ]);
+
+  let subtotal = 0;
+
+  lines.forEach((line, i) => {
+    const productDoc = productDocs[i];
     if (!productDoc.exists) {
       throw new functions.https.HttpsError(
         "invalid-argument",
-        `المنتج غير موجود: ${productId}`,
+        `المنتج غير موجود: ${line.productId}`,
       );
     }
     const product = productDoc.data() || {};
@@ -218,30 +238,27 @@ async function validateOrderAmount(
     if (!(unitPrice > 0)) {
       throw new functions.https.HttpsError(
         "invalid-argument",
-        `سعر المنتج غير صالح: ${productId}`,
+        `سعر المنتج غير صالح: ${line.productId}`,
       );
     }
-    subtotal += unitPrice * quantity;
-  }
+    subtotal += unitPrice * line.quantity;
+  });
 
   // Shipping from settings/store (shipping sub-object). Free shipping if the
   // subtotal reaches the configured threshold.
+  // Read concurrently with the products above; null means the read failed and
+  // was already logged, in which case shipping stays 0.
   let shippingCost = 0;
-  try {
-    const settingsDoc = await settingsRef(storeId, "store").get();
-    const shipping = settingsDoc.data()?.shipping;
-    if (shipping) {
-      const threshold = Number(shipping.freeShippingThreshold ?? 0);
-      const defaultCost = Number(shipping.defaultShippingCost ?? 0);
-      const freeEnabled = shipping.enableFreeShipping !== false;
-      if (freeEnabled && threshold > 0 && subtotal >= threshold) {
-        shippingCost = 0;
-      } else {
-        shippingCost = defaultCost;
-      }
+  const shipping = settingsDoc?.data()?.shipping;
+  if (shipping) {
+    const threshold = Number(shipping.freeShippingThreshold ?? 0);
+    const defaultCost = Number(shipping.defaultShippingCost ?? 0);
+    const freeEnabled = shipping.enableFreeShipping !== false;
+    if (freeEnabled && threshold > 0 && subtotal >= threshold) {
+      shippingCost = 0;
+    } else {
+      shippingCost = defaultCost;
     }
-  } catch (e) {
-    console.error("validateOrderAmount: failed to read shipping settings", e);
   }
 
   const expectedTotal = Math.round((subtotal + shippingCost) * 100) / 100;
@@ -1421,7 +1438,11 @@ export const cjImageProxy = functions.https.onRequest(async (req, res) => {
 });
 
 // ==================== PayPal - إنشاء طلب دفع ====================
-export const paypalCreateOrder = functions.https.onCall(
+// 512MB بدل 256MB الافتراضية: الحصة الأكبر تعني وحدة معالجة أسرع، فيقل زمن
+// الإقلاع البارد الذي كان يضيف ~4.8 ثانية على مسار الدفع المرئي للعميل.
+export const paypalCreateOrder = functions
+  .runWith({ memory: "512MB", timeoutSeconds: 60 })
+  .https.onCall(
   async (data, context) => {
     // التحقق من تسجيل الدخول
     if (!context.auth) {
@@ -1487,7 +1508,9 @@ export const paypalCreateOrder = functions.https.onCall(
 );
 
 // ==================== PayPal - تأكيد الدفع ====================
-export const paypalCaptureOrder = functions.https.onCall(
+export const paypalCaptureOrder = functions
+  .runWith({ memory: "512MB", timeoutSeconds: 60 })
+  .https.onCall(
   async (data, context) => {
     // التحقق من تسجيل الدخول
     if (!context.auth) {

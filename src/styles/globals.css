@@ -124,6 +124,28 @@
   box-sizing: border-box;
 }
 
+/* رابط "تخطّي إلى المحتوى": مخفي بصرياً، يظهر عند التركيز بلوحة المفاتيح.
+   لا يستخدم display:none لأن المخفي بذلك لا يستقبل التركيز أصلاً. */
+.skip-link {
+  position: absolute;
+  inset-inline-start: 16px;
+  top: -100px;
+  z-index: 200;
+  padding: 12px 20px;
+  background: var(--primary);
+  color: var(--on-primary);
+  border-radius: var(--radius-sm);
+  font-weight: 700;
+  text-decoration: none;
+  transition: top 150ms ease;
+}
+
+/* ‎:focus لا :focus-visible — الأخير يعتمد على استدلال المتصفح عن نوع التفاعل،
+   ورابط التخطّي يجب أن يظهر كلما استقبل التركيز بأي وسيلة. */
+.skip-link:focus {
+  top: 16px;
+}
+
 body {
   font-family: 'Tajawal', sans-serif;
   background-color: var(--bg);

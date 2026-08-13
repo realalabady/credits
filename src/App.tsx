@@ -78,8 +78,14 @@ const PageLoader: React.FC = () => (
 // Store Layout Component
 const StoreLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <>
+    {/* تخطّي إلى المحتوى: أول عنصر قابل للتركيز في الصفحة، مخفي بصرياً حتى
+        يستقبل التركيز — بدونه يمرّ مستخدم لوحة المفاتيح على القائمة كاملة
+        في كل صفحة. */}
+    <a href="#main" className="skip-link">
+      تخطّي إلى المحتوى
+    </a>
     <Header />
-    <main style={{ minHeight: "60vh" }}>
+    <main id="main" style={{ minHeight: "60dvh" }}>
       <Suspense fallback={<PageLoader />}>{children}</Suspense>
     </main>
     <Footer />

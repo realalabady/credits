@@ -46,7 +46,9 @@ const Header: React.FC = () => {
             {storeInfo.storePhone ? (
               <div className="header-contact">
                 <Phone size={14} aria-hidden="true" />
-                <span>{storeInfo.storePhone}</span>
+                <a href={`tel:${storeInfo.storePhone}`} dir="ltr">
+                  {storeInfo.storePhone}
+                </a>
               </div>
             ) : (
               <div className="header-contact" />

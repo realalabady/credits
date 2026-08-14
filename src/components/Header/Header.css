@@ -26,6 +26,15 @@
   gap: 6px;
 }
 
+.header-contact a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.header-contact a:hover {
+  color: var(--secondary);
+}
+
 .header-links {
   display: flex;
   align-items: center;

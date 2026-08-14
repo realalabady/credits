@@ -13,11 +13,20 @@ export interface StoreInfo {
 
 export const DEFAULT_STORE_INFO: StoreInfo = {
   storeName: "متجري",
-  storeEmail: "",
-  storePhone: "",
+  storeEmail: "almotyryf123@gmail.com",
+  storePhone: "0580593088",
   storeAddress: "",
   currency: "SAR",
   language: "ar",
+};
+
+/** يحوّل رقم الجوال المحلي (05xxxxxxxx) إلى صيغة واتساب الدولية (9665xxxxxxxx) */
+export const toWhatsAppNumber = (phone: string): string => {
+  const digits = (phone || "").replace(/\D/g, "");
+  if (!digits) return "";
+  if (digits.startsWith("966")) return digits;
+  if (digits.startsWith("0")) return `966${digits.slice(1)}`;
+  return digits;
 };
 
 interface StoreState {

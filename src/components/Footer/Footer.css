@@ -120,6 +120,16 @@
   color: rgba(250, 249, 245, 0.6);
 }
 
+.footer-contact a {
+  color: inherit;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.footer-contact a:hover {
+  color: var(--secondary);
+}
+
 /* Bottom Bar */
 .footer-bottom {
   background: rgba(0, 0, 0, 0.2);

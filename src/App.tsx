@@ -102,7 +102,15 @@ const App: React.FC = () => {
       setProducts(products),
     );
     const unsubSettings = subscribeToSettings((settings) => {
-      if (settings?.store) setStoreInfo(settings.store);
+      if (settings?.store) {
+        // القيم الفارغة في Firestore لا تلغي بيانات التواصل الافتراضية
+        const store = Object.fromEntries(
+          Object.entries(settings.store).filter(
+            ([, value]) => value !== "" && value !== null && value !== undefined,
+          ),
+        );
+        setStoreInfo(store);
+      }
     });
     return () => {
       unsubProducts();

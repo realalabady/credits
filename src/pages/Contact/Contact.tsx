@@ -9,7 +9,7 @@ import {
   Loader,
 } from "lucide-react";
 import { addContactMessage } from "../../services/firestore";
-import { useStore } from "../../store/useStore";
+import { useStore, toWhatsAppNumber } from "../../store/useStore";
 import "./Contact.css";
 
 const Contact: React.FC = () => {
@@ -64,7 +64,11 @@ const Contact: React.FC = () => {
               </div>
               <div>
                 <h3>اتصل بنا</h3>
-                <p>{storeInfo.storePhone || "غير متوفر"}</p>
+                <p>
+                  <a href={`tel:${storeInfo.storePhone}`} dir="ltr">
+                    {storeInfo.storePhone}
+                  </a>
+                </p>
                 <span>متاح 24/7</span>
               </div>
             </div>
@@ -75,7 +79,11 @@ const Contact: React.FC = () => {
               </div>
               <div>
                 <h3>البريد الإلكتروني</h3>
-                <p>{storeInfo.storeEmail || "غير متوفر"}</p>
+                <p>
+                  <a href={`mailto:${storeInfo.storeEmail}`} dir="ltr">
+                    {storeInfo.storeEmail}
+                  </a>
+                </p>
                 <span>نرد خلال 24 ساعة</span>
               </div>
             </div>
@@ -103,7 +111,7 @@ const Contact: React.FC = () => {
 
             <div className="whatsapp-btn">
               <a
-                href="https://wa.me/966556122411"
+                href={`https://wa.me/${toWhatsAppNumber(storeInfo.storePhone)}`}
                 target="_blank"
                 rel="noopener noreferrer"
               >

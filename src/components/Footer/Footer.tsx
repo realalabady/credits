@@ -142,13 +142,17 @@ const Footer: React.FC = () => {
                 {storeInfo.storePhone && (
                   <li>
                     <Phone size={18} aria-hidden="true" />
-                    <span>{storeInfo.storePhone}</span>
+                    <a href={`tel:${storeInfo.storePhone}`} dir="ltr">
+                      {storeInfo.storePhone}
+                    </a>
                   </li>
                 )}
                 {storeInfo.storeEmail && (
                   <li>
                     <Mail size={18} aria-hidden="true" />
-                    <span>{storeInfo.storeEmail}</span>
+                    <a href={`mailto:${storeInfo.storeEmail}`} dir="ltr">
+                      {storeInfo.storeEmail}
+                    </a>
                   </li>
                 )}
               </ul>

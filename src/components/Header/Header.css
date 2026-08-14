@@ -26,10 +26,6 @@
   gap: 6px;
 }
 
-.header-promo {
-  font-weight: 600;
-}
-
 .header-links {
   display: flex;
   align-items: center;
@@ -344,9 +340,5 @@
   .nav-link {
     padding: 12px 10px;
     font-size: 14px;
-  }
-
-  .header-promo {
-    font-size: 11px;
   }
 }

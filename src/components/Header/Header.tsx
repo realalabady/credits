@@ -51,9 +51,6 @@ const Header: React.FC = () => {
             ) : (
               <div className="header-contact" />
             )}
-            <div className="header-promo">
-              توصيل مجاني داخل المدينة للطلبات فوق 500 ريال
-            </div>
             <div className="header-links">
               {user ? (
                 <Link to={user.role === "admin" ? "/dashboard" : "/account"}>

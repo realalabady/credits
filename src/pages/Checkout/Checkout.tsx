@@ -12,7 +12,8 @@ import {
   Clock,
 } from "lucide-react";
 import { useStore } from "../../store/useStore";
-import { addOrder, getSettings } from "../../services/firestore";
+import { addOrder, getSettings, updateOrderData } from "../../services/firestore";
+import { createTamaraCheckout } from "../../services/tamara";
 import Header from "../../components/Header/Header";
 import Footer from "../../components/Footer/Footer";
 import { useToast } from "../../components/Toast/Toast";
@@ -32,8 +33,8 @@ interface PaymentMethod {
   enabled: boolean;
 }
 
-// طرق الدفع المسموح بها للعميل. تمارا/تابي أُخفيت من واجهة العميل.
-const ALLOWED_METHOD_IDS = ["cash", "bank", "card", "emkan"] as const;
+// طرق الدفع المسموح بها للعميل.
+const ALLOWED_METHOD_IDS = ["cash", "bank", "card", "emkan", "tamara"] as const;
 
 const CARD_METHOD: PaymentMethod = {
   id: "card",
@@ -46,6 +47,7 @@ const DEFAULT_PAYMENT_METHODS: PaymentMethod[] = [
   { id: "bank", name: "التحويل البنكي", enabled: true },
   CARD_METHOD,
   { id: "emkan", name: "إمكان - قسّمها على 5", enabled: true },
+  { id: "tamara", name: "تمارا - قسّمها على 3", enabled: true },
 ];
 
 const Checkout: React.FC = () => {
@@ -101,8 +103,7 @@ const Checkout: React.FC = () => {
           if (settings.shipping) {
             setShippingSettings(settings.shipping);
           }
-          // قراءة طرق الدفع المفعّلة من الإعدادات، مع حصرها في المسموح بها
-          // وإضافة إمكان إن لم تكن موجودة.
+          // قراءة طرق الدفع من الإعدادات، مع حصرها في المسموح بها.
           if (settings.payment?.methods && settings.payment.methods.length > 0) {
             const allowed = settings.payment.methods.filter((m: PaymentMethod) =>
               (ALLOWED_METHOD_IDS as readonly string[]).includes(m.id)
@@ -225,6 +226,7 @@ const Checkout: React.FC = () => {
       }
 
       const isEmkan = formData.paymentMethod === "emkan";
+      const isTamara = formData.paymentMethod === "tamara";
 
       const orderData = {
         userId: user.id,
@@ -243,8 +245,7 @@ const Checkout: React.FC = () => {
         shippingCost: shipping,
         status: "pending" as const,
         paymentMethod: formData.paymentMethod,
-        // إمكان: الطلب معلّق حتى يدفع العميل عبر الرابط الذي يرسله المتجر.
-        ...(isEmkan ? { paymentStatus: "pending" as const } : {}),
+        ...(isEmkan || isTamara ? { paymentStatus: "pending" as const } : {}),
         // PayPal: الدفع تم بالفعل قبل إنشاء الطلب، لذا نحفظه مدفوعاً مع مراجعه.
         ...(paypalPayment
           ? {
@@ -273,6 +274,48 @@ const Checkout: React.FC = () => {
       // المخزون يُخصم على الخادم داخل onOrderCreated (معاملة ذرية).
       // كما يُرسل onOrderCreated تنبيهاً لصاحب المتجر عبر Resend لطلبات إمكان.
       const newOrderId = await addOrder(orderData);
+
+      if (isTamara) {
+        const nameParts = formData.fullName.trim().split(/\s+/);
+        const firstName = nameParts[0] || formData.fullName;
+        const lastName = nameParts.slice(1).join(" ") || firstName;
+        const tamaraResult = await createTamaraCheckout({
+          orderReferenceId: newOrderId,
+          totalAmount: total,
+          currency: "SAR",
+          items: cart.map((item) => ({
+            reference_id: item.product.id,
+            name: item.product.name,
+            quantity: item.quantity,
+            unit_price: item.product.price,
+            image_url: item.product.images[0] || undefined,
+          })),
+          consumer: {
+            first_name: firstName,
+            last_name: lastName,
+            email: user.email,
+            phone: formData.phone,
+          },
+          shippingAddress: {
+            first_name: firstName,
+            last_name: lastName,
+            line1: `${formData.district}، ${formData.street}${formData.building ? `، مبنى ${formData.building}` : ""}`,
+            city: formData.city,
+            phone: formData.phone,
+          },
+          shippingAmount: shipping,
+          successUrl: `${window.location.origin}/order-confirmation/${newOrderId}?tamara=success`,
+          failureUrl: `${window.location.origin}/order-confirmation/${newOrderId}?tamara=failure`,
+          cancelUrl: `${window.location.origin}/order-confirmation/${newOrderId}?tamara=cancel`,
+          description: `طلب #${newOrderId}`,
+        });
+
+        await updateOrderData(newOrderId, {
+          tamaraCheckoutId: tamaraResult.checkout_id,
+        });
+        window.location.assign(tamaraResult.checkout_url);
+        return;
+      }
 
       setOrderPlaced(true);
       clearCart();
@@ -542,6 +585,7 @@ const Checkout: React.FC = () => {
                                   <CreditCard size={24} />
                                 )}
                                 {method.id === "emkan" && <Clock size={24} />}
+                                {method.id === "tamara" && <Clock size={24} />}
                                 <div>
                                   <strong>{method.name}</strong>
                                   {method.id === "cash" && (
@@ -558,6 +602,11 @@ const Checkout: React.FC = () => {
                                   {method.id === "emkan" && (
                                     <span>
                                       قسّم فاتورتك على 5 دفعات عبر إمكان
+                                    </span>
+                                  )}
+                                  {method.id === "tamara" && (
+                                    <span>
+                                      قسّم فاتورتك على 3 دفعات عبر تمارا
                                     </span>
                                   )}
                                 </div>

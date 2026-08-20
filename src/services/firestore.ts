@@ -125,6 +125,9 @@ export interface FirestoreOrder {
   paymentStatus?: "pending" | "paid";
   paypalOrderId?: string;
   paypalCaptureId?: string;
+  tamaraCheckoutId?: string;
+  tamaraOrderId?: string;
+  tamaraStatus?: string;
   paidAt?: Date;
   shippingAddress: string;
   address?: {
